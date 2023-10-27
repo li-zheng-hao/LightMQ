@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ", "LightMQ\LightMQ.csproj", "{7FAE2236-6197-4D48-A8AA-2C5305A7644E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ.Storage.MongoDB", "LightMQ.Storage.MongoDB\LightMQ.Storage.MongoDB.csproj", "{54678E64-C59A-4EE2-B1A5-5ABCEC29AE46}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ.Storage.SqlServer", "LightMQ.Storage.SqlServer\LightMQ.Storage.SqlServer.csproj", "{ED374B12-6929-4766-BC2D-96CF25479389}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7FAE2236-6197-4D48-A8AA-2C5305A7644E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7FAE2236-6197-4D48-A8AA-2C5305A7644E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7FAE2236-6197-4D48-A8AA-2C5305A7644E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7FAE2236-6197-4D48-A8AA-2C5305A7644E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54678E64-C59A-4EE2-B1A5-5ABCEC29AE46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54678E64-C59A-4EE2-B1A5-5ABCEC29AE46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54678E64-C59A-4EE2-B1A5-5ABCEC29AE46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54678E64-C59A-4EE2-B1A5-5ABCEC29AE46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ED374B12-6929-4766-BC2D-96CF25479389}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED374B12-6929-4766-BC2D-96CF25479389}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED374B12-6929-4766-BC2D-96CF25479389}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED374B12-6929-4766-BC2D-96CF25479389}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
