@@ -14,7 +14,7 @@ public interface IStorageProvider
     ///  重置消息状态
     /// </summary>
     /// <returns></returns>
-    Task ResetProcessingMessagesAsync(Message message,CancellationToken cancellationToken);
+    Task ResetProcessingMessagesAsync(IMessage message,CancellationToken cancellationToken);
     
     /// <summary>
     ///  重置超时消息
@@ -27,5 +27,5 @@ public interface IStorageProvider
     /// </summary>
     /// <param name="stoppingToken"></param>
     /// <returns></returns>
-    Task<Message> PollNewMessageAsync(CancellationToken cancellationToken);
+    Task<IMessage> PollNewMessageAsync(CancellationToken cancellationToken);
 }

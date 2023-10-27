@@ -8,11 +8,15 @@
 
     <ItemGroup>
       <Folder Include="MongoMQ\BackgroundService\" />
-      <Folder Include="MongoMQ\Message\" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\LightMQ\LightMQ.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MongoDB.Driver" Version="2.19.2" />
+      <PackageReference Include="MongoDB.Entities" Version="21.0.2" />
     </ItemGroup>
 
 </Project>

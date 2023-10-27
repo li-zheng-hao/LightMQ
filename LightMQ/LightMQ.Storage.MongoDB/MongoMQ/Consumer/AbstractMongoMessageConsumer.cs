@@ -1,6 +1,4 @@
 ﻿using LightMQ.Transport;
-using MongoDB.Entities;
-using SW.Core.MongoMQ.Message;
 
 namespace SW.Core.MongoMQ.Consumer;
 

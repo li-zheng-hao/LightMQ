@@ -1,7 +1,7 @@
 ﻿
 namespace LightMQ.Transport;
 
-public class Message
+public interface IMessage
 {
     /// <summary>
     /// 消息唯一id
