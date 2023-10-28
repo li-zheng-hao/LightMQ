@@ -18,4 +18,10 @@ public class LightMQOptions
     /// 消息过期时间 超过这个时间的消息要删除
     /// </summary>
     public TimeSpan MessageExpireDuration { get; set; }
+
+    /// <summary>
+    /// 消息存储表名
+    /// </summary>
+    public string TableName { get; set; } = "lightmq_messages";
+    
 }

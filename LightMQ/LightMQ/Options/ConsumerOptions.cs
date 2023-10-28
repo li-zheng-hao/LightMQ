@@ -1,6 +1,6 @@
-﻿namespace SW.Core.MongoMQ.Consumer;
+﻿namespace LightMQ.Options;
 
-public class MongoConsumerOptions
+public class ConsumerOptions
 {
     /// <summary>
     /// 主题

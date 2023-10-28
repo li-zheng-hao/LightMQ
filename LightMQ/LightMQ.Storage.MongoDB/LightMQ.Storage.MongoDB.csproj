@@ -1,22 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <TargetFrameworks>net7.0;net6.0</TargetFrameworks>
+        <LangVersion>11.0</LangVersion>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <Version>0.1.0</Version>
+        <Title>LightMQ.Storage.MongoDB</Title>
+        <Authors>lizhenghao</Authors>
+        <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/li-zheng-hao/LightMQ</RepositoryUrl>
+        <Description>基于数据库的消息队列</Description>
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="MongoMQ\BackgroundService\" />
+        <ProjectReference Include="..\LightMQ\LightMQ.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\LightMQ\LightMQ.csproj" />
+        <PackageReference Include="MongoDB.Driver" Version="2.19.2"/>
+
+        <None Include="..\..\icon.png">
+            <Pack>True</Pack>
+            <PackagePath></PackagePath>
+            <Link>icon.png</Link>
+        </None>
+
     </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Include="MongoDB.Driver" Version="2.19.2" />
-      <PackageReference Include="MongoDB.Entities" Version="21.0.2" />
-    </ItemGroup>
 
 </Project>

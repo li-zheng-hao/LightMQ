@@ -2,8 +2,8 @@
 
 public enum MessageStatus
 {
-    Waiting,
-    Processing,
-    Completed,
-    Failed
+    Waiting=0,
+    Processing=1,
+    Success=2,
+    Failed=3
 }

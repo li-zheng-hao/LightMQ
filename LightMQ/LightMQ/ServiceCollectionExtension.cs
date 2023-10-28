@@ -1,5 +1,7 @@
 ﻿using LightMQ.BackgroundService;
 using LightMQ.Options;
+using LightMQ.Publisher;
+using LightMQ.Storage.MongoDB.MongoMQ.Publisher;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace SW.Core.MongoMQ;
@@ -11,16 +13,21 @@ public static class ServiceCollectionExtension
     /// </summary>
     /// <param name="serviceCollection"></param>
     /// <returns></returns>
-    public static IServiceCollection AddMongoMQ(this IServiceCollection serviceCollection,Action<LightMQOptions> configure)
+    public static IServiceCollection AddLightMQ(this IServiceCollection serviceCollection,Action<LightMQOptions> configure)
     {
+        serviceCollection.Configure(configure);
+        
         var options = new LightMQOptions();
         configure(options);
         foreach (var extension in options.Extensions)
         {
             extension.AddExtension(serviceCollection);
         }
+
+        serviceCollection.AddSingleton<IMessagePublisher, MessagePublisher>();
         serviceCollection.AddHostedService<ResetMessageBackgroundService>();
         serviceCollection.AddHostedService<ClearOldMessagesBackgroundService>();
+        serviceCollection.AddHostedService<InitStorageBackgroundService>();
         return serviceCollection;
     }
 }

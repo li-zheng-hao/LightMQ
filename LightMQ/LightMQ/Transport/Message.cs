@@ -1,12 +1,12 @@
 ﻿
 namespace LightMQ.Transport;
 
-public interface IMessage
+public class Message
 {
     /// <summary>
     /// 消息唯一id
     /// </summary>
-    public string MessageId { get; set; }
+    public string Id { get; set; }
     
     /// <summary>
     /// 状态
