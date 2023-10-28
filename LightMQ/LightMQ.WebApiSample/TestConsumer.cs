@@ -19,9 +19,9 @@ public class TestConsumer:MessageConsumerBase
         };
     }
 
-    public override Task ConsumeAsync(string message, CancellationToken cancellationToken)
+    public override async Task ConsumeAsync(string message, CancellationToken cancellationToken)
     {
         Console.WriteLine(message);
-        return Task.CompletedTask;
+        await Task.Delay(Random.Shared.Next(1000, 3000), cancellationToken);
     }
 }

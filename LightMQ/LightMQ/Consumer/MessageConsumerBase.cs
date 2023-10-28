@@ -37,6 +37,8 @@ public abstract class MessageConsumerBase:Microsoft.Extensions.Hosting.Backgroun
                 await ConsumeAsync(CurrentMessage.Data,stoppingToken);
 
                 await _storageProvider.AckMessageAsync(CurrentMessage, stoppingToken);
+                
+                CurrentMessage = null;
 
             }
         }
