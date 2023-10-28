@@ -15,6 +15,7 @@
         <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>
         <RepositoryUrl>https://github.com/li-zheng-hao/LightMQ</RepositoryUrl>
         <Description>基于数据库的消息队列</Description>
+        <PackageIcon>icon.png</PackageIcon>
     </PropertyGroup>
 
     <ItemGroup>
