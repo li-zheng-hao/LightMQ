@@ -79,10 +79,16 @@ public class MongoStorageProvider:IStorageProvider
                 cancellationToken: stoppingToken);
     }
 
-    public Task InitTables(CancellationToken stoppingToken = default)
+    public async Task InitTables(CancellationToken stoppingToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
-            .CreateCollectionAsync(_mqOptions.Value.TableName, cancellationToken: stoppingToken);
+        var db=_mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName);
+        var names =
+            (await db.ListCollectionNamesAsync(cancellationToken: stoppingToken).ConfigureAwait(false))
+            .ToList();
+
+        if (names.All(n => n != _mqOptions.Value.TableName))
+            await db.CreateCollectionAsync(_mqOptions.Value.TableName, cancellationToken: stoppingToken)
+                .ConfigureAwait(false);
     }
 
     public Task PublishNewMessagesAsync(List<Message> messages)
