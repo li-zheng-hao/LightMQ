@@ -13,8 +13,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
-    // it.UseSqlServer("Data Source=.;Initial Catalog=Test;User ID=sa;Password=Abc12345;");
-    it.UseMongoDB("mongodb://localhost:27018","Test");
+    it.UseSqlServer("Data Source=.;Initial Catalog=Test;User ID=sa;Password=Abc12345;");
+    // it.UseMongoDB("mongodb://localhost:27018","Test");
 });
 builder.Services.AddHostedService<TestConsumer>();
 

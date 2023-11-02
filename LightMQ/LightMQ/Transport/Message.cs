@@ -27,4 +27,14 @@ public class Message
     /// 创建时间
     /// </summary>
     public DateTime CreateTime { get; set; }
+    
+    /// <summary>
+    /// 可执行时间
+    /// </summary>
+    public DateTime ExecutableTime { get; set; }
+    
+    /// <summary>
+    /// 重试次数
+    /// </summary>
+    public int RetryCount { get; set; }
 }
