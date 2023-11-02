@@ -6,10 +6,7 @@ namespace LightMQ.WebApiSample;
 
 public class TestConsumer:MessageConsumerBase
 {
-    public TestConsumer(IStorageProvider storageProvider) : base(storageProvider)
-    {
-    }
-
+  
     public override ConsumerOptions GetOptions()
     {
         return new ConsumerOptions()
@@ -19,9 +16,12 @@ public class TestConsumer:MessageConsumerBase
         };
     }
 
-    public override async Task ConsumeAsync(string message, CancellationToken cancellationToken)
+    public override async Task<bool> ConsumeAsync(string message, CancellationToken cancellationToken)
     {
-        Console.WriteLine(message);
-        await Task.Delay(Random.Shared.Next(1000, 3000), cancellationToken);
+        return true;
+    }
+
+    public TestConsumer(ILogger<TestConsumer> logger, IStorageProvider storageProvider) : base(logger, storageProvider)
+    {
     }
 }

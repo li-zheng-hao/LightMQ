@@ -32,11 +32,16 @@ public interface IStorageProvider
     Task ClearOldMessagesAsync(CancellationToken cancellationToken=default);
     
     /// <summary>
-    ///  重置消息状态
+    ///  消息失败NACK
     /// </summary>
     /// <returns></returns>
     Task NackMessageAsync(Message message,CancellationToken cancellationToken=default);
-    
+    /// <summary>
+    ///  消息重置
+    /// </summary>
+    /// <returns></returns>
+    Task ResetMessageAsync(Message message,CancellationToken cancellationToken=default);
+
     /// <summary>
     ///  重置超时消息
     /// </summary>

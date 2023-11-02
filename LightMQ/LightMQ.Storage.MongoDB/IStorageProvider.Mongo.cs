@@ -47,9 +47,18 @@ public class MongoStorageProvider:IStorageProvider
         return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .UpdateOneAsync(it => it.Id == message.Id,
-                Builders<Message>.Update.Set(it => it.Status, MessageStatus.Waiting),
+                Builders<Message>.Update.Set(it => it.Status, MessageStatus.Failed),
                 cancellationToken: cancellationToken);
 
+    }
+
+    public Task ResetMessageAsync(Message message, CancellationToken cancellationToken = default)
+    {
+        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName)
+            .UpdateOneAsync(it => it.Id == message.Id,
+                Builders<Message>.Update.Set(it => it.Status, MessageStatus.Waiting),
+                cancellationToken: cancellationToken);
     }
 
     public Task ResetOutOfDateMessagesAsync(CancellationToken cancellationToken = default)

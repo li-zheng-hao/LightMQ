@@ -11,4 +11,5 @@ public class ConsumerOptions
     /// 拉取间隔
     /// </summary>
     public TimeSpan PollInterval { get; set; }=TimeSpan.FromSeconds(2);
+    
 }

@@ -71,6 +71,15 @@ public class SqlServerStorageProvider : IStorageProvider
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         return connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
+                { new SqlParameter("@Status", MessageStatus.Failed), new SqlParameter("@Id", message.Id) });
+    }
+
+    public Task ResetMessageAsync(Message message, CancellationToken cancellationToken = default)
+    {
+        var sql = $"update {_mqOptions.Value.TableName} set Status=@Status where Id=@Id";
+        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
+        return connection.ExecuteNonQueryAsync(sql,
+            sqlParams: new object[]
                 { new SqlParameter("@Status", MessageStatus.Waiting), new SqlParameter("@Id", message.Id) });
     }
 

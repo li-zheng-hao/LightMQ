@@ -1,20 +1,23 @@
 ﻿using LightMQ.Options;
 using LightMQ.Storage;
 using LightMQ.Transport;
+using Microsoft.Extensions.Logging;
 
 namespace LightMQ.Consumer;
 
 public abstract class MessageConsumerBase:Microsoft.Extensions.Hosting.BackgroundService
 {
+    private readonly ILogger<MessageConsumerBase> _logger;
     private readonly IStorageProvider _storageProvider;
 
-    public MessageConsumerBase(IStorageProvider storageProvider)
+    public MessageConsumerBase(ILogger<MessageConsumerBase> logger,IStorageProvider storageProvider)
     {
+        _logger = logger;
         _storageProvider = storageProvider;
     }
     public abstract ConsumerOptions GetOptions();
 
-    public abstract Task ConsumeAsync(string message, CancellationToken cancellationToken);
+    public abstract Task<bool> ConsumeAsync(string message, CancellationToken cancellationToken);
 
     public Message? CurrentMessage { get; set; }
     
@@ -33,11 +36,23 @@ public abstract class MessageConsumerBase:Microsoft.Extensions.Hosting.Backgroun
                     await Task.Delay(options.PollInterval, stoppingToken);
                     continue;                
                 }
-        
-                await ConsumeAsync(CurrentMessage.Data,stoppingToken);
 
-                await _storageProvider.AckMessageAsync(CurrentMessage, stoppingToken);
-                
+                try
+                {
+                    var result=await ConsumeAsync(CurrentMessage.Data, stoppingToken);
+                    if (result)
+                    {
+                        await _storageProvider.AckMessageAsync(CurrentMessage, stoppingToken);
+                        continue;
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (e is TaskCanceledException) throw;
+                    _logger.LogError(e,$"{GetOptions().Topic}消费消息异常");
+                }
+                await _storageProvider.NackMessageAsync(CurrentMessage, stoppingToken);
+
                 CurrentMessage = null;
 
             }
@@ -46,7 +61,7 @@ public abstract class MessageConsumerBase:Microsoft.Extensions.Hosting.Backgroun
         {
             if (CurrentMessage?.Status == MessageStatus.Processing)
             {
-                await _storageProvider.NackMessageAsync(CurrentMessage);
+                await _storageProvider.ResetMessageAsync(CurrentMessage);
             }
         }
     }
