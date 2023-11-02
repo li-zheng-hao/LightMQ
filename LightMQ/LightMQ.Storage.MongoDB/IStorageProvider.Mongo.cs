@@ -65,7 +65,8 @@ public class MongoStorageProvider:IStorageProvider
     {
         return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
-            .UpdateManyAsync(it => it.CreateTime <= DateTime.Now.Subtract(_mqOptions.Value.MessageTimeoutDuration),
+            .UpdateManyAsync(it => it.CreateTime <= DateTime.Now.Subtract(_mqOptions.Value.MessageTimeoutDuration)
+                                   &&it.Status==MessageStatus.Processing,
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Waiting),
                 cancellationToken: cancellationToken);
     }
