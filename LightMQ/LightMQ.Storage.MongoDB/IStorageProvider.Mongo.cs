@@ -61,6 +61,17 @@ public class MongoStorageProvider:IStorageProvider
                 cancellationToken: cancellationToken);
     }
 
+    public Task UpdateRetryInfoAsync(Message message, CancellationToken cancellationToken = default)
+    {
+        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName)
+            .UpdateOneAsync(it => it.Id == message.Id,
+                Builders<Message>.Update.Set(it => it.RetryCount, message.RetryCount)
+                    .Set(it => it.ExecutableTime, message.ExecutableTime)
+                    .Set(it=>it.Status,MessageStatus.Waiting),
+                cancellationToken: cancellationToken);
+    }
+
     public Task ResetOutOfDateMessagesAsync(CancellationToken cancellationToken = default)
     {
         return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
@@ -75,7 +86,8 @@ public class MongoStorageProvider:IStorageProvider
     {
         return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
-            .FindOneAndUpdateAsync(it => it.Topic == topic && it.Status == MessageStatus.Waiting,
+            .FindOneAndUpdateAsync(it => it.Topic == topic && it.Status == MessageStatus.Waiting
+                &&it.ExecutableTime<=DateTime.Now,
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Processing),
                 cancellationToken: cancellationToken);
     }

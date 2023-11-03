@@ -41,7 +41,11 @@ public interface IStorageProvider
     /// </summary>
     /// <returns></returns>
     Task ResetMessageAsync(Message message,CancellationToken cancellationToken=default);
-
+    /// <summary>
+    ///  更新消息的重试信息
+    /// </summary>
+    /// <returns></returns>
+    Task UpdateRetryInfoAsync(Message message,CancellationToken cancellationToken=default);
     /// <summary>
     ///  重置超时消息
     /// </summary>

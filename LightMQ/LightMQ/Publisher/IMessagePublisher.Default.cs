@@ -22,6 +22,8 @@ public class MessagePublisher:IMessagePublisher
             Data = JsonConvert.SerializeObject(message),
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
+            RetryCount = 0,
+            ExecutableTime = DateTime.Now
         };
         return _storageProvider.PublishNewMessageAsync(msg);
     }
@@ -35,6 +37,8 @@ public class MessagePublisher:IMessagePublisher
             Data = JsonConvert.SerializeObject(message),
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
+            RetryCount = 0,
+            ExecutableTime = DateTime.Now
         };
         return _storageProvider.PublishNewMessageAsync(msg,transaction);
     }
