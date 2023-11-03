@@ -8,7 +8,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>
-        <Version>0.2.2</Version>
+        <Version>0.2.3</Version>
         <Title>LightMQ</Title>
         <Authors>lizhenghao</Authors>
         <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>

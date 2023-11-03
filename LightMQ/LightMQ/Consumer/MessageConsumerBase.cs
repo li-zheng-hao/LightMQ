@@ -30,13 +30,12 @@ public abstract class MessageConsumerBase:Microsoft.Extensions.Hosting.Backgroun
             while (!stoppingToken.IsCancellationRequested)
             {
                 CurrentMessage = await _storageProvider.PollNewMessageAsync(options.Topic, stoppingToken);
-            
                 if (CurrentMessage == null)
                 {
                     await Task.Delay(options.PollInterval, stoppingToken);
                     continue;                
                 }
-
+                CurrentMessage.Status=MessageStatus.Processing;
                 try
                 {
                     var result=await ConsumeAsync(CurrentMessage.Data, stoppingToken);
