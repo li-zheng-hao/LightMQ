@@ -21,4 +21,9 @@ public class ConsumerOptions
     /// 重试间隔
     /// </summary>
     public TimeSpan RetryInterval { get; set; }=TimeSpan.FromSeconds(5);
+    
+    /// <summary>
+    /// 并发数量
+    /// </summary>
+    public int ParallelNum { get; set; }
 }

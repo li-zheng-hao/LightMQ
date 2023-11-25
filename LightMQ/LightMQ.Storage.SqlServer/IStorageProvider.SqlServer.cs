@@ -168,9 +168,9 @@ public class SqlServerStorageProvider : IStorageProvider
             "Id varchar(50) primary key," +
             "Topic nvarchar(255) not null," +
             "Data nvarchar(max) not null," +
-            "CreateTime datetime not null," +
+            "CreateTime datetime2 not null," +
             "Status int not null," +
-            "ExecutableTime datetime not null,"+
+            "ExecutableTime datetime2 not null,"+
             "RetryCount int not null"+
             ")";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
@@ -179,7 +179,8 @@ public class SqlServerStorageProvider : IStorageProvider
 
     public Task PublishNewMessagesAsync(List<Message> messages)
     {
-        var sql = $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status) values (@Id,@Topic,@Data,@CreateTime,@Status)";  
+        var sql =
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);  
         return connection.ExecuteAsync(sql, messages);
 
@@ -188,7 +189,7 @@ public class SqlServerStorageProvider : IStorageProvider
     public Task PublishNewMessagesAsync(List<Message> messages, object transaction)
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status) values (@Id,@Topic,@Data,@CreateTime,@Status)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
         var dbTransaction = transaction as SqlTransaction;
         var connection = dbTransaction.Connection;
         return connection.ExecuteAsync(sql, messages, dbTransaction);

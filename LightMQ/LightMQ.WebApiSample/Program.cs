@@ -1,3 +1,4 @@
+using LightMQ.Consumer;
 using LightMQ.Storage.MongoDB.MongoMQ;
 using LightMQ.Storage.SqlServer;
 using LightMQ.WebApiSample;
@@ -13,10 +14,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
-    it.UseSqlServer("Data Source=.;Initial Catalog=Test;User ID=sa;Password=Abc12345;");
+    it.UseSqlServer("server=localhost;uid=sa;pwd=Abc.12345;database=Test;TrustServerCertificate=true;");
     // it.UseMongoDB("mongodb://localhost:27018","Test");
 });
-builder.Services.AddHostedService<TestConsumer>();
+
+builder.Services.AddScoped<Test2Consumer>();
 
 var app = builder.Build();
 

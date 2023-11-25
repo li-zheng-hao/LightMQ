@@ -36,7 +36,10 @@ public class WeatherForecastController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Publish([FromServices] IMessagePublisher messagePublisher)
     {
-        await messagePublisher.PublishAsync("test", DateTime.Now.Ticks.ToString());
+        foreach (var i in Enumerable.Range(1,2))
+        {
+            await messagePublisher.PublishAsync("test", new List<string>(){"1","2"});
+        }
         return Ok();
     }
 }

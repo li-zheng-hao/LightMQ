@@ -15,11 +15,13 @@ public class MessagePublisher:IMessagePublisher
 
     public Task PublishAsync<T>(string topic,T message) where T : class
     {
+        string data = message as string ?? JsonConvert.SerializeObject(message);
+
         var msg=new Message()
         {
             Id = Guid.NewGuid().ToString(),
             Topic = topic,
-            Data = JsonConvert.SerializeObject(message),
+            Data = data,
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
             RetryCount = 0,
@@ -30,11 +32,13 @@ public class MessagePublisher:IMessagePublisher
 
     public Task PublishAsync<T>(string topic, T message, object transaction) where T : class
     {
+        string data = message as string ?? JsonConvert.SerializeObject(message);
+
         var msg=new Message()
         {
             Id = Guid.NewGuid().ToString(),
             Topic = topic,
-            Data = JsonConvert.SerializeObject(message),
+            Data = data,
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
             RetryCount = 0,
@@ -48,13 +52,16 @@ public class MessagePublisher:IMessagePublisher
         List<Message> messages = new();
         foreach (var item in message)
         {
+            string data = item as string ?? JsonConvert.SerializeObject(item);
             messages.Add(new Message()
             {
                 Id = Guid.NewGuid().ToString(),
                 Topic = topic,
-                Data = JsonConvert.SerializeObject(item),
+                Data = data,
                 CreateTime = DateTime.Now,
                 Status = MessageStatus.Waiting,
+                RetryCount = 0,
+                ExecutableTime = DateTime.Now
             });
         }
         return _storageProvider.PublishNewMessagesAsync(messages);
@@ -65,13 +72,16 @@ public class MessagePublisher:IMessagePublisher
         List<Message> messages = new();
         foreach (var item in message)
         {
+            string data = item as string ?? JsonConvert.SerializeObject(item);
             messages.Add(new Message()
             {
                 Id = Guid.NewGuid().ToString(),
                 Topic = topic,
-                Data = JsonConvert.SerializeObject(item),
+                Data = data,
                 CreateTime = DateTime.Now,
                 Status = MessageStatus.Waiting,
+                RetryCount = 0,
+                ExecutableTime = DateTime.Now
             });
         }
         return _storageProvider.PublishNewMessagesAsync(messages,transaction);

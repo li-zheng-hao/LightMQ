@@ -19,15 +19,17 @@ public static class ServiceCollectionExtension
         
         var options = new LightMQOptions();
         configure(options);
+        
         foreach (var extension in options.Extensions)
         {
             extension.AddExtension(serviceCollection);
         }
 
         serviceCollection.AddSingleton<IMessagePublisher, MessagePublisher>();
+        serviceCollection.AddHostedService<InitStorageBackgroundService>();
         serviceCollection.AddHostedService<ResetMessageBackgroundService>();
         serviceCollection.AddHostedService<ClearOldMessagesBackgroundService>();
-        serviceCollection.AddHostedService<InitStorageBackgroundService>();
+        serviceCollection.AddHostedService<DispatcherService>();
         return serviceCollection;
     }
 }
