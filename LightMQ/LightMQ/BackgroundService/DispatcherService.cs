@@ -125,8 +125,6 @@ public class DispatcherService : IHostedService
                         await _storageProvider.NackMessageAsync(currentMessage, stoppingToken);
                 }
 
-                currentMessage = null;
-
             }
         }
         catch (TaskCanceledException)
