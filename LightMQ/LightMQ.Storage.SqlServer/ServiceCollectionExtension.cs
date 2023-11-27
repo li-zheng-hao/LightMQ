@@ -14,7 +14,6 @@ public static class ServiceCollectionExtension
     public static LightMQOptions UseSqlServer(this LightMQOptions mqOptions,string connectionstring)
     {
         mqOptions.Extensions.Add(new SqlServerExtension(connectionstring));
-        
         return mqOptions;
     }
 }

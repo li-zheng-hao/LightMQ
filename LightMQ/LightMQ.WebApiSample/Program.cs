@@ -18,7 +18,7 @@ builder.Services.AddLightMQ(it =>
     // it.UseMongoDB("mongodb://localhost:27018","Test");
 });
 
-builder.Services.AddScoped<Test2Consumer>();
+// builder.Services.AddScoped<Test2Consumer>();
 
 var app = builder.Build();
 

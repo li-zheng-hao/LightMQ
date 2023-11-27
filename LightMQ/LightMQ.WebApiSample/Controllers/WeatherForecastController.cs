@@ -1,4 +1,5 @@
 using System.Data.SqlClient;
+using System.Diagnostics;
 using LightMQ.Publisher;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
@@ -36,10 +37,21 @@ public class WeatherForecastController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Publish([FromServices] IMessagePublisher messagePublisher)
     {
-        foreach (var i in Enumerable.Range(1,2))
-        {
-            await messagePublisher.PublishAsync("test", new List<string>(){"1","2"});
-        }
-        return Ok();
+        int num = 1;
+        // 60秒
+        // var cancel = new CancellationTokenSource(60 * 1000);
+        // while (!cancel.IsCancellationRequested)
+        // {
+        //     await messagePublisher.PublishAsync("test", "111");
+        //     num++;
+        //     Console.WriteLine(num);
+        // }
+        Stopwatch sw = new();
+        sw.Restart();
+        
+        var data=Enumerable.Range(1, 2000).Select(it => it.ToString()).ToList();
+        await messagePublisher.PublishAsync<string>("test", data);
+        _logger.LogInformation($" {sw.ElapsedMilliseconds}ms");
+        return Ok(num);
     }
 }

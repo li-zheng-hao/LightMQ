@@ -147,6 +147,11 @@ public class DispatcherService : IHostedService
         foreach (var consumersType in consumersTypes)
         {
             var consumer=scope.ServiceProvider.GetService(consumersType) as IMessageConsumer;
+            if (consumer is null)
+            {
+                _logger.LogWarning($"扫描到了{consumersType.FullName}，但是没有从IOC容器中获取到实例，跳过");
+                continue;
+            }
             _consumers.Add(consumer.GetOptions().Topic,consumersType);
             _consumersOptions.Add(consumer.GetOptions().Topic,consumer.GetOptions());
         }

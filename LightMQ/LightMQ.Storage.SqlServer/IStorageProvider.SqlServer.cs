@@ -20,6 +20,7 @@ public class SqlServerStorageProvider : IStorageProvider
         _dbOptions = dbOptions;
     }
 
+    
     public async Task PublishNewMessageAsync(Message message,
         CancellationToken cancellationToken = default)
     {
@@ -60,39 +61,43 @@ public class SqlServerStorageProvider : IStorageProvider
             }).ConfigureAwait(false);
     }
 
-    public Task ClearOldMessagesAsync(CancellationToken cancellationToken = default)
+    public async Task ClearOldMessagesAsync(CancellationToken cancellationToken = default)
     {
         var sql = $"delete from {_mqOptions.Value.TableName} where CreateTime<=@CreateTime";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
                 { new SqlParameter("@CreateTime", DateTime.Now.Subtract(_mqOptions.Value.MessageExpireDuration)) });
     }
 
-    public Task NackMessageAsync(Message message, CancellationToken cancellationToken = default)
+    public async Task NackMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
         var sql = $"update {_mqOptions.Value.TableName} set Status=@Status where Id=@Id";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
                 { new SqlParameter("@Status", MessageStatus.Failed), new SqlParameter("@Id", message.Id) });
     }
 
-    public Task ResetMessageAsync(Message message, CancellationToken cancellationToken = default)
+    public async Task ResetMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
         var sql = $"update {_mqOptions.Value.TableName} set Status=@Status where Id=@Id";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
                 { new SqlParameter("@Status", MessageStatus.Waiting), new SqlParameter("@Id", message.Id) });
     }
 
-    public Task UpdateRetryInfoAsync(Message message, CancellationToken cancellationToken = default)
+    public async Task UpdateRetryInfoAsync(Message message, CancellationToken cancellationToken = default)
     {
         var sql =
             $"update {_mqOptions.Value.TableName} set Status=@Status,ExecutableTime=@ExecutableTime,RetryCount=@RetryCount where Id=@Id";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
             {
                 new SqlParameter("@Status", MessageStatus.Waiting),
@@ -102,12 +107,13 @@ public class SqlServerStorageProvider : IStorageProvider
             });
     }
 
-    public Task ResetOutOfDateMessagesAsync(CancellationToken cancellationToken = default)
+    public async Task ResetOutOfDateMessagesAsync(CancellationToken cancellationToken = default)
     {
         var sql =
             $"update {_mqOptions.Value.TableName} set Status=@Status where CreateTime<=@CreateTime and Status=@StatusOrigin";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
             {
                 new SqlParameter("@Status", MessageStatus.Waiting),
@@ -116,7 +122,7 @@ public class SqlServerStorageProvider : IStorageProvider
             });
     }
 
-    public Task<Message?> PollNewMessageAsync(string topic, CancellationToken cancellationToken = default)
+    public async Task<Message?> PollNewMessageAsync(string topic, CancellationToken cancellationToken = default)
     {
         // 将一条消息的状态从Waiting改为Processing，并返回这条消息
         var sql =
@@ -124,7 +130,8 @@ public class SqlServerStorageProvider : IStorageProvider
  output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount  where Topic=@Topic and Status=@StatusOrigin 
  and ExecutableTime<=@ExecutableTime";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteReaderAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        return await connection.ExecuteReaderAsync(sql,
             readerFunc: async reader =>
             {
                 if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -152,16 +159,17 @@ public class SqlServerStorageProvider : IStorageProvider
             });
     }
 
-    public Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)
+    public async Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)
     {
         var sql = $"update {_mqOptions.Value.TableName} set Status=@Status where Id=@Id";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql,
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
                 { new SqlParameter("@Status", MessageStatus.Success), new SqlParameter("@Id", currentMessage.Id) });
     }
 
-    public Task InitTables(CancellationToken stoppingToken = default)
+    public async Task InitTables(CancellationToken stoppingToken = default)
     {
         var sql =
             $"if not exists(select * from sysobjects where name='{_mqOptions.Value.TableName}') create table {_mqOptions.Value.TableName}(" +
@@ -174,15 +182,20 @@ public class SqlServerStorageProvider : IStorageProvider
             "RetryCount int not null"+
             ")";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
-        return connection.ExecuteNonQueryAsync(sql);
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteNonQueryAsync(sql);
     }
 
-    public Task PublishNewMessagesAsync(List<Message> messages)
+    public async Task PublishNewMessagesAsync(List<Message> messages)
     {
         var sql =
             $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
-        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);  
-        return connection.ExecuteAsync(sql, messages);
+        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        connection.Open();
+        await using var transaction = connection.BeginTransaction();
+        await connection.ExecuteAsync(sql, messages,transaction);
+        await transaction.CommitAsync();
 
     }
 
