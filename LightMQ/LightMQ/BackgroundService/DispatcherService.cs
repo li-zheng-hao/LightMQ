@@ -83,26 +83,28 @@ public class DispatcherService : IHostedService
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e,"拉取消息出现异常");
+                    _logger.LogError(e, "拉取消息出现异常");
                     currentMessage = null;
                 }
-            
+
                 if (currentMessage == null)
                 {
                     await Task.Delay(consumerOptions.PollInterval, stoppingToken);
-                    continue;                
+                    continue;
                 }
 
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
-                    
-                    var consumer=scope.ServiceProvider.GetService(_consumers[consumerOptions.Topic]) as IMessageConsumer;
-                    
-                    if(currentMessage.RetryCount>0) _logger.LogInformation($"第{currentMessage.RetryCount+1}次重试消息{currentMessage.Id}");
-                    
-                    var result=await consumer!.ConsumeAsync(currentMessage.Data, stoppingToken);
-                    
+
+                    var consumer =
+                        scope.ServiceProvider.GetService(_consumers[consumerOptions.Topic]) as IMessageConsumer;
+
+                    if (currentMessage.RetryCount > 0)
+                        _logger.LogInformation($"第{currentMessage.RetryCount + 1}次重试消息{currentMessage.Id}");
+
+                    var result = await consumer!.ConsumeAsync(currentMessage.Data, stoppingToken);
+
                     if (result)
                     {
                         await _storageProvider.AckMessageAsync(currentMessage, stoppingToken);
@@ -122,9 +124,9 @@ public class DispatcherService : IHostedService
                 catch (Exception e)
                 {
                     if (e is TaskCanceledException) throw;
-                    
-                    _logger.LogError(e,$"{consumerOptions.Topic}消费消息异常");
-                    
+
+                    _logger.LogError(e, $"{consumerOptions.Topic}消费消息异常");
+
                     if (currentMessage.RetryCount < consumerOptions.RetryCount)
                     {
                         currentMessage.RetryCount += 1;
@@ -140,12 +142,25 @@ public class DispatcherService : IHostedService
         catch (TaskCanceledException)
         {
             _logger.LogInformation($"取消正在执行的任务 {consumerOptions.Topic}");
-            
+
             if (currentMessage?.Status == MessageStatus.Processing)
             {
-                await _storageProvider.ResetMessageAsync(currentMessage);
+                try
+                {
+                    await _storageProvider.ResetMessageAsync(currentMessage);
+
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e,"重置消息状态出现异常");
+                }
             }
         }
+        catch (Exception e)
+        {
+            _logger.LogError(e,$"出现未处理异常");
+        }
+        
         _logger.LogInformation($"{consumerOptions.Topic}主题消费者停止消费");
     }
 
