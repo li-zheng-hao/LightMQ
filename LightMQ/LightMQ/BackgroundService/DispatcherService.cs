@@ -77,7 +77,15 @@ public class DispatcherService : IHostedService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                currentMessage = await _storageProvider.PollNewMessageAsync(consumerOptions.Topic, stoppingToken);
+                try
+                {
+                    currentMessage = await _storageProvider.PollNewMessageAsync(consumerOptions.Topic, stoppingToken);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e,"拉取消息出现异常");
+                    currentMessage = null;
+                }
             
                 if (currentMessage == null)
                 {
@@ -88,10 +96,12 @@ public class DispatcherService : IHostedService
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
+                    
                     var consumer=scope.ServiceProvider.GetService(_consumers[consumerOptions.Topic]) as IMessageConsumer;
+                    
                     if(currentMessage.RetryCount>0) _logger.LogInformation($"第{currentMessage.RetryCount+1}次重试消息{currentMessage.Id}");
                     
-                    var result=await consumer.ConsumeAsync(currentMessage.Data, stoppingToken);
+                    var result=await consumer!.ConsumeAsync(currentMessage.Data, stoppingToken);
                     
                     if (result)
                     {
@@ -136,6 +146,7 @@ public class DispatcherService : IHostedService
                 await _storageProvider.ResetMessageAsync(currentMessage);
             }
         }
+        _logger.LogInformation($"{consumerOptions.Topic}主题消费者停止消费");
     }
 
     private void InitConsumers()
