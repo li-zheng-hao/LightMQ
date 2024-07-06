@@ -2,7 +2,6 @@
 using LightMQ.Publisher;
 using LightMQ.Storage;
 using LightMQ.Storage.MongoDB;
-using LightMQ.Storage.MongoDB.MongoMQ.Publisher;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 

@@ -1,7 +1,6 @@
 ﻿using LightMQ.BackgroundService;
 using LightMQ.Options;
 using LightMQ.Publisher;
-using LightMQ.Storage.MongoDB.MongoMQ.Publisher;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace SW.Core.MongoMQ;

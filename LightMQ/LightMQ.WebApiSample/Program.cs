@@ -14,11 +14,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
-    it.UseSqlServer("server=localhost;uid=sa;pwd=Abc.12345;database=Test;TrustServerCertificate=true;");
-    // it.UseMongoDB("mongodb://localhost:27018","Test");
+    // it.UseSqlServer("server=localhost;uid=sa;pwd=Abc.12345;database=Test;TrustServerCertificate=true;");
+    it.UseMongoDB("mongodb://172.10.4.138","LightMQTest");
 });
 
-// builder.Services.AddScoped<Test2Consumer>();
+builder.Services.AddScoped<Test2Consumer>();
 
 var app = builder.Build();
 

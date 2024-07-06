@@ -1,4 +1,6 @@
 ﻿
+using Newtonsoft.Json;
+
 namespace LightMQ.Transport;
 
 public class Message
@@ -37,4 +39,54 @@ public class Message
     /// 重试次数
     /// </summary>
     public int RetryCount { get; set; }
+    
+    /// <summary>
+    /// 消息头信息 反序列化为Dictionary[string, string] 类型
+    /// </summary>
+    public string? Header { get; set; }
+}
+
+/// <summary>
+/// 消息扩展
+/// </summary>
+public static class MessageExtension
+{
+    /// <summary>
+    /// 设置消息头
+    /// </summary>
+    /// <param name="message"></param>
+    /// <param name="header"></param>
+    public static void SetHeader(this Message message, Dictionary<string, string> header)
+    {
+        message.Header = JsonConvert.SerializeObject(header);
+    }
+    
+    /// <summary>
+    /// 新增消息头
+    /// </summary>
+    /// <param name="message"></param>
+    /// <param name="key"></param>
+    /// <param name="value"></param>
+    public static void AddHeader(this Message message, string key,string value)
+    {
+        var header=message.GetHeader();
+
+        if (header== null)
+        {
+            header=new Dictionary<string, string>();
+        }
+        
+        header!.Add(key,value);
+        
+        message.SetHeader(header);
+    }
+    /// <summary>
+    /// 返回消息头
+    /// </summary>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    public static Dictionary<string, string>? GetHeader(this Message message)
+    {
+        return JsonConvert.DeserializeObject<Dictionary<string, string>>(message.Header??string.Empty);
+    }
 }

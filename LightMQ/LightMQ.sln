@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ.Storage.SqlServer",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ.WebApiSample", "LightMQ.WebApiSample\LightMQ.WebApiSample.csproj", "{97966184-EA2C-4548-86A8-B1F161E69C70}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ.OpenTelemetry", "LightMQ.OpenTelemetry\LightMQ.OpenTelemetry.csproj", "{5401AB01-38C9-4168-8287-E00BB7B3B4FF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{97966184-EA2C-4548-86A8-B1F161E69C70}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{97966184-EA2C-4548-86A8-B1F161E69C70}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{97966184-EA2C-4548-86A8-B1F161E69C70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5401AB01-38C9-4168-8287-E00BB7B3B4FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5401AB01-38C9-4168-8287-E00BB7B3B4FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5401AB01-38C9-4168-8287-E00BB7B3B4FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5401AB01-38C9-4168-8287-E00BB7B3B4FF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

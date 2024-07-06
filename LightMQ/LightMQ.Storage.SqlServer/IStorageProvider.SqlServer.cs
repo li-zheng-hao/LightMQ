@@ -25,7 +25,7 @@ public class SqlServerStorageProvider : IStorageProvider
         CancellationToken cancellationToken = default)
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header)";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
         await connection.ExecuteNonQueryAsync(sql, sqlParams:
@@ -38,6 +38,7 @@ public class SqlServerStorageProvider : IStorageProvider
                 new SqlParameter("@Status", message.Status),
                 new SqlParameter("@ExecutableTime", message.ExecutableTime),
                 new SqlParameter("@RetryCount", message.RetryCount),
+                new SqlParameter("@Header", message.Header),
             }).ConfigureAwait(false);
     }
 
@@ -45,7 +46,7 @@ public class SqlServerStorageProvider : IStorageProvider
         CancellationToken cancellationToken = default)
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header)";
         var dbTransaction = transaction as SqlTransaction;
         var connection = dbTransaction.Connection;
         await connection.ExecuteNonQueryAsync(sql, dbTransaction, sqlParams:
@@ -58,6 +59,7 @@ public class SqlServerStorageProvider : IStorageProvider
                 new SqlParameter("@Status", message.Status),
                 new SqlParameter("@ExecutableTime", message.ExecutableTime),
                 new SqlParameter("@RetryCount", message.RetryCount),
+                new SqlParameter("@Header", message.Header)
             }).ConfigureAwait(false);
     }
 
@@ -127,7 +129,7 @@ public class SqlServerStorageProvider : IStorageProvider
         // 将一条消息的状态从Waiting改为Processing，并返回这条消息
         var sql =
             @$"UPDATE top(1) {_mqOptions.Value.TableName} set Status=@Status 
- output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount  where Topic=@Topic and Status=@StatusOrigin 
+ output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header  where Topic=@Topic and Status=@StatusOrigin 
  and ExecutableTime<=@ExecutableTime";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
@@ -144,7 +146,8 @@ public class SqlServerStorageProvider : IStorageProvider
                         CreateTime = reader.GetDateTime(3),
                         Status = reader.GetInt32(4).ToEnum<MessageStatus>(),
                         ExecutableTime = reader.GetDateTime(5),
-                        RetryCount = reader.GetInt32(6)
+                        RetryCount = reader.GetInt32(6),
+                        Header = reader.GetString(7)
                     };
                 }
 
@@ -179,7 +182,8 @@ public class SqlServerStorageProvider : IStorageProvider
             "CreateTime datetime2 not null," +
             "Status int not null," +
             "ExecutableTime datetime2 not null,"+
-            "RetryCount int not null"+
+            "RetryCount int not null,"+
+            "Header nvarchar(max) "+
             ")";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
@@ -189,7 +193,7 @@ public class SqlServerStorageProvider : IStorageProvider
     public async Task PublishNewMessagesAsync(List<Message> messages)
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header)";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
         connection.Open();
@@ -202,7 +206,7 @@ public class SqlServerStorageProvider : IStorageProvider
     public Task PublishNewMessagesAsync(List<Message> messages, object transaction)
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header)";
         var dbTransaction = transaction as SqlTransaction;
         var connection = dbTransaction.Connection;
         return connection.ExecuteAsync(sql, messages, dbTransaction);

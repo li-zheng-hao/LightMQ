@@ -1,4 +1,6 @@
-﻿using LightMQ.Consumer;
+﻿using System.Diagnostics;
+using LightMQ.Consumer;
+using LightMQ.Diagnostics;
 using LightMQ.Options;
 using LightMQ.Storage;
 using LightMQ.Transport;
@@ -11,7 +13,9 @@ namespace LightMQ.BackgroundService;
 
 public class DispatcherService : IHostedService
 {
-
+    protected static readonly DiagnosticListener _diagnosticListener =
+        new(DiagnosticsListenserNames.DiagnosticListenerName);
+    
     private readonly ILogger<DispatcherService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IStorageProvider _storageProvider;
@@ -30,7 +34,7 @@ public class DispatcherService : IHostedService
         _consumersOptions = new();
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         _cancel  = new CancellationTokenSource();
         try
@@ -42,7 +46,7 @@ public class DispatcherService : IHostedService
             if (_consumers.Count == 0)
             {
                 _logger.LogInformation("没有扫描到消费者");
-                return;
+                return Task.CompletedTask;
             };
             
             StartDispatch(_cancel.Token);
@@ -52,9 +56,10 @@ public class DispatcherService : IHostedService
             _logger.LogError(e, "LightMQ Dispatcher Service Start Failed");
 
         }
+        return Task.CompletedTask;
     }
 
-    private async Task StartDispatch(CancellationToken cancellationToken)
+    private void StartDispatch(CancellationToken cancellationToken)
     {
         foreach (var consumer in _consumersOptions)
         {
@@ -95,6 +100,8 @@ public class DispatcherService : IHostedService
 
                 try
                 {
+                    TracingBefore(currentMessage);
+
                     using var scope = _serviceProvider.CreateScope();
 
                     var consumer =
@@ -135,6 +142,10 @@ public class DispatcherService : IHostedService
                     }
                     else
                         await _storageProvider.NackMessageAsync(currentMessage, stoppingToken);
+                }
+                finally
+                {
+                    TracingAfter(currentMessage);
                 }
 
             }
@@ -188,4 +199,25 @@ public class DispatcherService : IHostedService
         _cancel.Cancel();
         _logger.LogInformation("LightMQ Dispatcher Service Stopped at {Now}", DateTime.Now);
     }
+
+    #region Tracing
+
+    private static void TracingBefore(Message message)
+    {
+        if (_diagnosticListener.IsEnabled(DiagnosticsListenserNames.BeforeConsume))
+        {
+            _diagnosticListener.Write(DiagnosticsListenserNames.BeforeConsume, message);
+        }
+    }
+
+    private static void TracingAfter(Message message)
+    {
+        if (_diagnosticListener.IsEnabled(DiagnosticsListenserNames.AfterConsume))
+        {
+            _diagnosticListener.Write(DiagnosticsListenserNames.AfterConsume, message);
+        }
+    }
+
+    #endregion
+ 
 }
