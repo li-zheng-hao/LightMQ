@@ -1,4 +1,5 @@
 ﻿using LightMQ.BackgroundService;
+using LightMQ.Internal;
 using LightMQ.Options;
 using LightMQ.Publisher;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,7 @@ public static class ServiceCollectionExtension
         }
 
         serviceCollection.AddSingleton<IMessagePublisher, MessagePublisher>();
+        serviceCollection.AddTransient<PollMessageTask>();
         serviceCollection.AddHostedService<InitStorageBackgroundService>();
         serviceCollection.AddHostedService<ResetMessageBackgroundService>();
         serviceCollection.AddHostedService<ClearOldMessagesBackgroundService>();

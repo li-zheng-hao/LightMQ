@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using LightMQ.Consumer;
 using LightMQ.Diagnostics;
+using LightMQ.Internal;
 using LightMQ.Options;
 using LightMQ.Storage;
 using LightMQ.Transport;
@@ -13,9 +14,6 @@ namespace LightMQ.BackgroundService;
 
 public class DispatcherService : IHostedService
 {
-    protected static readonly DiagnosticListener _diagnosticListener =
-        new(DiagnosticsListenserNames.DiagnosticListenerName);
-    
     private readonly ILogger<DispatcherService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IStorageProvider _storageProvider;
@@ -23,6 +21,8 @@ public class DispatcherService : IHostedService
     private Dictionary<string,Type> _consumers;
     private Dictionary<string,ConsumerOptions> _consumersOptions;
     private CancellationTokenSource _cancel;
+
+    private List<PollMessageTask> _tasks;
 
     public DispatcherService(ILogger<DispatcherService> logger,IServiceProvider serviceProvider,IStorageProvider storageProvider,IOptions<LightMQOptions> options)
     {
@@ -32,6 +32,7 @@ public class DispatcherService : IHostedService
         _options = options;
         _consumers = new();
         _consumersOptions = new();
+        _tasks = new();
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -65,118 +66,16 @@ public class DispatcherService : IHostedService
         {
             for (var i = 0; i < consumer.Value.ParallelNum; i++)
             {
+                var scheduleConsumeTask = _serviceProvider.GetRequiredService<PollMessageTask>();
+                _tasks.Add(scheduleConsumeTask);
                 Task.Factory.StartNew(
-                    async () => await PollingMessage(consumer.Value, cancellationToken),
+                    async () => await scheduleConsumeTask.RunAsync(consumer.Value,_consumers[consumer.Key], cancellationToken),
                     cancellationToken,
                     TaskCreationOptions.LongRunning,
                     TaskScheduler.Default
                 );
             }
         }
-    }
-
-    private async Task PollingMessage(ConsumerOptions consumerOptions, CancellationToken stoppingToken)
-    {
-        Message? currentMessage = null;
-        try
-        {
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
-                {
-                    currentMessage = await _storageProvider.PollNewMessageAsync(consumerOptions.Topic, stoppingToken);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, "拉取消息出现异常");
-                    currentMessage = null;
-                }
-
-                if (currentMessage == null)
-                {
-                    await Task.Delay(consumerOptions.PollInterval, stoppingToken);
-                    continue;
-                }
-
-                try
-                {
-                    // 变为消费状态
-                    currentMessage.Status = MessageStatus.Processing;
-                    
-                    TracingBefore(currentMessage);
-
-                    using var scope = _serviceProvider.CreateScope();
-
-                    var consumer =
-                        scope.ServiceProvider.GetService(_consumers[consumerOptions.Topic]) as IMessageConsumer;
-
-                    if (currentMessage.RetryCount > 0)
-                        _logger.LogInformation($"第{currentMessage.RetryCount + 1}次重试消息{currentMessage.Id}");
-
-                    var result = await consumer!.ConsumeAsync(currentMessage.Data, stoppingToken);
-
-                    if (result)
-                    {
-                        await _storageProvider.AckMessageAsync(currentMessage, stoppingToken);
-                    }
-                    else
-                    {
-                        if (currentMessage.RetryCount < consumerOptions.RetryCount)
-                        {
-                            currentMessage.RetryCount += 1;
-                            currentMessage.ExecutableTime = DateTime.Now.Add(consumerOptions.RetryInterval);
-                            await _storageProvider.UpdateRetryInfoAsync(currentMessage, stoppingToken);
-                        }
-                        else
-                            await _storageProvider.NackMessageAsync(currentMessage, stoppingToken);
-                    }
-                }
-                catch (Exception e)
-                {
-                    if (e is OperationCanceledException) throw;
-
-                    _logger.LogError(e, $"{consumerOptions.Topic}消费消息异常");
-
-                    if (currentMessage.RetryCount < consumerOptions.RetryCount)
-                    {
-                        currentMessage.RetryCount += 1;
-                        currentMessage.ExecutableTime = DateTime.Now.Add(consumerOptions.RetryInterval);
-                        await _storageProvider.UpdateRetryInfoAsync(currentMessage, stoppingToken);
-                    }
-                    else
-                        await _storageProvider.NackMessageAsync(currentMessage, stoppingToken);
-                }
-                finally
-                {
-                    TracingAfter(currentMessage);
-                }
-
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (currentMessage?.Status == MessageStatus.Processing)
-            {
-                try
-                {
-                    // 如果消费者正在处理消息，则重置消息状态
-                    _logger.LogInformation($"当前消息[ID={currentMessage.Id},Topic={currentMessage.Topic}]重置消息状态为等待消费");
-                    await _storageProvider.ResetMessageAsync(currentMessage);
-                    _logger.LogInformation($"当前消息[ID={currentMessage.Id},Topic={currentMessage.Topic}]重置消息状态为等待消费成功");
-
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e,"重置消息状态出现异常");
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e,$"出现未处理异常");
-        }
-        
-        _logger.LogInformation($"{consumerOptions.Topic}主题消费者停止消费");
     }
 
     private void InitConsumers()
@@ -198,31 +97,30 @@ public class DispatcherService : IHostedService
         }
     }
 
-    public  Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _cancel.Cancel();
+
+        try
+        {
+            var tokenSource = new CancellationTokenSource();
+            tokenSource.CancelAfter(_options.Value.ExitTimeOut);
+            while (!tokenSource.IsCancellationRequested)
+            {
+                if (_tasks.All(it => it.IsRunning == false))
+                    break;
+
+                var topics=_tasks.Where(it => it.IsRunning).Select(it=>it.ConsumerOptions?.Topic);
+                _logger.LogWarning($"主题：{string.Join(",",topics)}的消费者还在运行中，等待结束...");
+                await Task.Delay(1000,tokenSource.Token);
+            }
+        }
+        catch (Exception)
+        {
+            _logger.LogInformation("LightMQ等待退出超时，强制退出");
+        }
+
         _logger.LogInformation("LightMQ Dispatcher Service Stopped at {Now}", DateTime.Now);
-        return Task.CompletedTask;
     }
-
-    #region Tracing
-
-    private static void TracingBefore(Message message)
-    {
-        if (_diagnosticListener.IsEnabled(DiagnosticsListenserNames.BeforeConsume))
-        {
-            _diagnosticListener.Write(DiagnosticsListenserNames.BeforeConsume, message);
-        }
-    }
-
-    private static void TracingAfter(Message message)
-    {
-        if (_diagnosticListener.IsEnabled(DiagnosticsListenserNames.AfterConsume))
-        {
-            _diagnosticListener.Write(DiagnosticsListenserNames.AfterConsume, message);
-        }
-    }
-
-    #endregion
  
 }

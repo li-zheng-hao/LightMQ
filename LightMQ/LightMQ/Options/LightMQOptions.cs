@@ -10,6 +10,7 @@ public class LightMQOptions
         MessageExpireDuration=TimeSpan.FromDays(7);
         Extensions = new();
         ConsumerAssembly = Assembly.GetEntryAssembly();
+        ExitTimeOut = TimeSpan.FromSeconds(10);
     }
     
     public List<IExtension> Extensions { get; set; }
@@ -31,5 +32,10 @@ public class LightMQOptions
     /// 消费者所在dll
     /// </summary>
     public Assembly ConsumerAssembly { get; set; }
+    
+    /// <summary>
+    /// 服务退出超时时间 默认10秒
+    /// </summary>
+    public TimeSpan ExitTimeOut { get; set; }
     
 }
