@@ -100,6 +100,9 @@ public class DispatcherService : IHostedService
 
                 try
                 {
+                    // 变为消费状态
+                    currentMessage.Status = MessageStatus.Processing;
+                    
                     TracingBefore(currentMessage);
 
                     using var scope = _serviceProvider.CreateScope();
@@ -130,7 +133,7 @@ public class DispatcherService : IHostedService
                 }
                 catch (Exception e)
                 {
-                    if (e is TaskCanceledException) throw;
+                    if (e is OperationCanceledException) throw;
 
                     _logger.LogError(e, $"{consumerOptions.Topic}消费消息异常");
 
@@ -150,15 +153,16 @@ public class DispatcherService : IHostedService
 
             }
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            _logger.LogInformation($"取消正在执行的任务 {consumerOptions.Topic}");
-
             if (currentMessage?.Status == MessageStatus.Processing)
             {
                 try
                 {
+                    // 如果消费者正在处理消息，则重置消息状态
+                    _logger.LogInformation($"当前消息[ID={currentMessage.Id},Topic={currentMessage.Topic}]重置消息状态为等待消费");
                     await _storageProvider.ResetMessageAsync(currentMessage);
+                    _logger.LogInformation($"当前消息[ID={currentMessage.Id},Topic={currentMessage.Topic}]重置消息状态为等待消费成功");
 
                 }
                 catch (Exception e)
@@ -194,10 +198,11 @@ public class DispatcherService : IHostedService
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public  Task StopAsync(CancellationToken cancellationToken)
     {
         _cancel.Cancel();
         _logger.LogInformation("LightMQ Dispatcher Service Stopped at {Now}", DateTime.Now);
+        return Task.CompletedTask;
     }
 
     #region Tracing

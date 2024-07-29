@@ -19,6 +19,7 @@ public class Test2Consumer:IMessageConsumer
     public async Task<bool> ConsumeAsync(string message, CancellationToken cancellationToken)
     {
         Console.WriteLine(message);
+        await Task.Delay(60_000,cancellationToken);
         return true;
     }
 

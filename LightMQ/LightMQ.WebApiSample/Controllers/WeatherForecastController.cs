@@ -49,7 +49,7 @@ public class WeatherForecastController : ControllerBase
         Stopwatch sw = new();
         sw.Restart();
         
-        var data=Enumerable.Range(1, 2000).Select(it => it.ToString()).ToList();
+        var data=Enumerable.Range(1, 1).Select(it => it.ToString()).ToList();
         await messagePublisher.PublishAsync<string>("test", data);
         _logger.LogInformation($" {sw.ElapsedMilliseconds}ms");
         return Ok(num);

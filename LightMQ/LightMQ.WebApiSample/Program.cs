@@ -15,7 +15,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
     // it.UseSqlServer("server=localhost;uid=sa;pwd=Abc.12345;database=Test;TrustServerCertificate=true;");
-    it.UseMongoDB("mongodb://172.10.4.138","LightMQTest");
+    it.UseMongoDB("","LightMQTest");
 });
 
 builder.Services.AddScoped<Test2Consumer>();
