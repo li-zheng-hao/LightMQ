@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LightMQ.Internal;
 
-internal class PollMessageTask
+internal class PollMessageTask:IPollMessageTask
 {
     protected static readonly DiagnosticListener _diagnosticListener =
         new(DiagnosticsListenserNames.DiagnosticListenerName);
@@ -17,6 +17,7 @@ internal class PollMessageTask
     private readonly ILogger<PollMessageTask> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IStorageProvider _storageProvider;
+    private ConsumerInfo? _consumerInfo;
 
     public PollMessageTask(ILogger<PollMessageTask> logger,IServiceProvider serviceProvider,IStorageProvider storageProvider)
     {
@@ -30,13 +31,16 @@ internal class PollMessageTask
     /// </summary>
     public bool IsRunning { get;private set; }
 
-    public ConsumerOptions? ConsumerOptions { get; set; }
-
-    public async Task RunAsync(ConsumerOptions consumerOptions,Type comsumerType,CancellationToken stoppingToken)
+    public ConsumerInfo? GetConsumerInfo()
+    {
+        return _consumerInfo;
+    }
+    
+    public async Task RunAsync(ConsumerInfo consumerInfo,CancellationToken stoppingToken)
     {
         Message? currentMessage = null;
         
-        ConsumerOptions = consumerOptions;
+        _consumerInfo = consumerInfo;
         IsRunning = true;
         try
         {
@@ -44,7 +48,7 @@ internal class PollMessageTask
             {
                 try
                 {
-                    currentMessage = await _storageProvider.PollNewMessageAsync(consumerOptions.Topic, stoppingToken);
+                    currentMessage = await _storageProvider.PollNewMessageAsync(_consumerInfo.ConsumerOptions.Topic, stoppingToken);
                 }
                 catch (Exception e)
                 {
@@ -54,7 +58,7 @@ internal class PollMessageTask
 
                 if (currentMessage == null)
                 {
-                    await Task.Delay(consumerOptions.PollInterval, stoppingToken);
+                    await Task.Delay(_consumerInfo.ConsumerOptions.PollInterval, stoppingToken);
                     continue;
                 }
 
@@ -68,7 +72,7 @@ internal class PollMessageTask
                     using var scope = _serviceProvider.CreateScope();
 
                     var consumer =
-                        scope.ServiceProvider.GetService(comsumerType) as IMessageConsumer;
+                        scope.ServiceProvider.GetService(consumerInfo.ConsumerType) as IMessageConsumer;
 
                     if (currentMessage.RetryCount > 0)
                         _logger.LogInformation($"第{currentMessage.RetryCount + 1}次重试消息{currentMessage.Id}");
@@ -81,10 +85,10 @@ internal class PollMessageTask
                     }
                     else
                     {
-                        if (currentMessage.RetryCount < consumerOptions.RetryCount)
+                        if (currentMessage.RetryCount < _consumerInfo.ConsumerOptions.RetryCount)
                         {
                             currentMessage.RetryCount += 1;
-                            currentMessage.ExecutableTime = DateTime.Now.Add(consumerOptions.RetryInterval);
+                            currentMessage.ExecutableTime = DateTime.Now.Add(_consumerInfo.ConsumerOptions.RetryInterval);
                             await _storageProvider.UpdateRetryInfoAsync(currentMessage, stoppingToken);
                         }
                         else
@@ -95,12 +99,12 @@ internal class PollMessageTask
                 {
                     if (e is OperationCanceledException) throw;
 
-                    _logger.LogError(e, $"{consumerOptions.Topic}消费消息异常");
+                    _logger.LogError(e, $"{_consumerInfo.ConsumerOptions.Topic}消费消息异常");
 
-                    if (currentMessage.RetryCount < consumerOptions.RetryCount)
+                    if (currentMessage.RetryCount < _consumerInfo.ConsumerOptions.RetryCount)
                     {
                         currentMessage.RetryCount += 1;
-                        currentMessage.ExecutableTime = DateTime.Now.Add(consumerOptions.RetryInterval);
+                        currentMessage.ExecutableTime = DateTime.Now.Add(_consumerInfo.ConsumerOptions.RetryInterval);
                         await _storageProvider.UpdateRetryInfoAsync(currentMessage, stoppingToken);
                     }
                     else
@@ -136,7 +140,7 @@ internal class PollMessageTask
             _logger.LogError(e,$"出现未处理异常");
         }
         
-        _logger.LogInformation($"{consumerOptions.Topic}主题消费者停止消费");
+        _logger.LogInformation($"{_consumerInfo.ConsumerOptions.Topic}主题消费者停止消费");
         IsRunning = false;
     }
     

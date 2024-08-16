@@ -4,7 +4,7 @@ using LightMQ.Options;
 using LightMQ.Publisher;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SW.Core.MongoMQ;
+namespace LightMQ;
 
 public static class ServiceCollectionExtension
 {
@@ -26,7 +26,8 @@ public static class ServiceCollectionExtension
         }
 
         serviceCollection.AddSingleton<IMessagePublisher, MessagePublisher>();
-        serviceCollection.AddTransient<PollMessageTask>();
+        serviceCollection.AddSingleton<IConsumerProvider, ConsumerProvider>();
+        serviceCollection.AddTransient<IPollMessageTask,PollMessageTask>();
         serviceCollection.AddHostedService<InitStorageBackgroundService>();
         serviceCollection.AddHostedService<ResetMessageBackgroundService>();
         serviceCollection.AddHostedService<ClearOldMessagesBackgroundService>();

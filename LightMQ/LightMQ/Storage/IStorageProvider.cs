@@ -8,7 +8,6 @@ public interface IStorageProvider
     /// 新增消息
     /// </summary>
     /// <param name="message"></param>
-    /// <param name="clientSessionHandle"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task PublishNewMessageAsync(Message message,

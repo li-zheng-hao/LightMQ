@@ -1,6 +1,6 @@
-﻿using LightMQ.Options;
+﻿using System.Runtime.CompilerServices;
+using LightMQ.Options;
 using LightMQ.Storage;
-using LightMQ.Transport;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -28,7 +28,7 @@ public class ClearOldMessagesBackgroundService : Microsoft.Extensions.Hosting.Ba
             {
                 await _storageProvider.ClearOldMessagesAsync(stoppingToken);
 
-                _logger.LogDebug("clear old messages success");
+                _logger.LogDebug("清除历史消息完成");
 
                 await Task.Delay(_options.Value.MessageExpireDuration, stoppingToken);
             }

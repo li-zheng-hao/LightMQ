@@ -31,7 +31,7 @@ public class LightMQOptions
     /// <summary>
     /// 消费者所在dll
     /// </summary>
-    public Assembly ConsumerAssembly { get; set; }
+    public Assembly? ConsumerAssembly { get; set; }
     
     /// <summary>
     /// 服务退出超时时间 默认10秒

@@ -29,7 +29,7 @@ public class MongoStorageProvider:IStorageProvider
         CancellationToken cancellationToken = default)
     {
         var client= transaction as IClientSessionHandle;
-        await client.Client.GetDatabase(_mongoOptions.Value.DatabaseName)
+        await client!.Client.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .InsertOneAsync(message, cancellationToken: cancellationToken);
     }
@@ -84,12 +84,14 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task<Message?> PollNewMessageAsync(string topic, CancellationToken cancellationToken = default)
     {
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
         return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .FindOneAndUpdateAsync(it => it.Topic == topic && it.Status == MessageStatus.Waiting
                 &&it.ExecutableTime<=DateTime.Now,
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Processing),
                 cancellationToken: cancellationToken);
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
     }
 
     public Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)
@@ -123,7 +125,7 @@ public class MongoStorageProvider:IStorageProvider
     public Task PublishNewMessagesAsync(List<Message> messages, object transaction)
     {
         var client= transaction as IClientSessionHandle;
-        return client.Client.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return client!.Client.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .InsertManyAsync(messages);
     }

@@ -3,6 +3,9 @@ using Microsoft.Extensions.Logging;
 
 namespace LightMQ.BackgroundService;
 
+/// <summary>
+/// 初始化数据库表
+/// </summary>
 public class InitStorageBackgroundService:Microsoft.Extensions.Hosting.BackgroundService
 {
     private readonly ILogger<InitStorageBackgroundService> _logger;

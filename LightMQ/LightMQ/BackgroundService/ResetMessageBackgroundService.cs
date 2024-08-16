@@ -26,7 +26,7 @@ public class ResetMessageBackgroundService:Microsoft.Extensions.Hosting.Backgrou
             {
                 await _storageProvider.ResetOutOfDateMessagesAsync(stoppingToken);
             
-                _logger.LogDebug("reset processing messages success");
+                _logger.LogDebug("重置超时消息状态完成");
 
                 await Task.Delay(_options.Value.MessageTimeoutDuration, stoppingToken);
             }

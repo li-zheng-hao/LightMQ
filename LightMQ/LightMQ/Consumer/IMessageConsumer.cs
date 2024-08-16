@@ -1,5 +1,4 @@
 ﻿using LightMQ.Options;
-using LightMQ.Transport;
 
 namespace LightMQ.Consumer;
 

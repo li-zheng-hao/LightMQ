@@ -1,8 +1,6 @@
-using LightMQ.Consumer;
+using LightMQ;
 using LightMQ.Storage.MongoDB.MongoMQ;
-using LightMQ.Storage.SqlServer;
 using LightMQ.WebApiSample;
-using SW.Core.MongoMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
