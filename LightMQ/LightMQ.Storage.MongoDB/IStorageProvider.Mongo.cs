@@ -1,6 +1,7 @@
 ﻿using LightMQ.Options;
 using LightMQ.Transport;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace LightMQ.Storage.MongoDB;
@@ -92,6 +93,40 @@ public class MongoStorageProvider:IStorageProvider
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Processing),
                 cancellationToken: cancellationToken);
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+    }
+
+    public Task<Message?> PollNewMessageAsync(string topic, string queue, CancellationToken cancellationToken = default)
+    {
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName)
+            .FindOneAndUpdateAsync(it => it.Topic == topic && it.Status == MessageStatus.Waiting
+                                                           &&it.ExecutableTime<=DateTime.Now&&it.Queue==queue,
+                Builders<Message>.Update.Set(it => it.Status, MessageStatus.Processing),
+                cancellationToken: cancellationToken);
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+    }
+
+    public async Task<List<string>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
+    {
+        var collection= _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName);
+        
+        var result = await collection.Aggregate()
+            .Match(m => m.Topic == topic&&m.Status==MessageStatus.Waiting&&m.ExecutableTime<=DateTime.Now) // 过滤条件：Topic 等于传入的 topic
+            .Group(new BsonDocument
+            {
+                { "_id", "$Queue" }, // 根据 Queue 字段进行分组
+                { "Queue", new BsonDocument("$first", "$Queue") } // 获取每个 Queue 的第一个值
+            })
+            .Project(new BsonDocument
+            {
+                { "Queue", "$Queue" } // 只返回 Queue 字段
+            })
+            .ToListAsync(cancellationToken);
+
+        // 提取 Queue 字段并转换为 List<string>
+        return result.Select(r => r["Queue"].AsString).ToList();
     }
 
     public Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)

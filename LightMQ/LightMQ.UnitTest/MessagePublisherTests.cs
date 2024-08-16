@@ -20,6 +20,20 @@ public class MessagePublisherTests
     }
 
     [Fact]
+    public async Task PublishAsync_ShouldPublishSingleMessageWithQueue()
+    {
+        // Arrange
+        var topic = "test-topic";
+        var message = "test message";
+        var queue = "test-queue";
+        // Act
+        await _messagePublisher.PublishAsync(topic, message, queue);
+
+        // Assert
+        _mockStorageProvider.Verify(sp => sp.PublishNewMessageAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+    [Fact]
     public async Task PublishAsync_ShouldPublishSingleMessage()
     {
         // Arrange
@@ -32,6 +46,23 @@ public class MessagePublisherTests
         // Assert
         _mockStorageProvider.Verify(sp => sp.PublishNewMessageAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+    [Fact]
+    public async Task PublishAsync_WithTransactionAndQueue_ShouldPublishSingleMessage()
+    {
+        // Arrange
+        var topic = "test-topic";
+        var message = "test message";
+        var transaction = new object();
+        var queue = "test-queue";
+
+        // Act
+        await _messagePublisher.PublishAsync(topic, message, transaction,queue);
+
+        // Assert
+        _mockStorageProvider.Verify(
+            sp => sp.PublishNewMessageAsync(It.IsAny<Message>(), transaction, It.IsAny<CancellationToken>())
+            , Times.Once);
     }
 
     [Fact]

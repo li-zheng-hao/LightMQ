@@ -42,7 +42,7 @@ public class ConsumerProvider:IConsumerProvider
             var consumer=scope.ServiceProvider.GetService(consumersType) as IMessageConsumer;
             if (consumer is null)
             {
-                _logger.LogWarning($"扫描到了{consumersType.FullName}，但是没有从IOC容器中获取到实例，跳过");
+                _logger.LogWarning($"扫描到了{consumersType.FullName}，但是没有从ServiceProvider中获取到实例，跳过处理");
                 continue;
             }
             _consumerInfos.Add(new ConsumerInfo()

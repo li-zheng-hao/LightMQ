@@ -18,6 +18,7 @@ internal class PollMessageTask:IPollMessageTask
     private readonly IServiceProvider _serviceProvider;
     private readonly IStorageProvider _storageProvider;
     private ConsumerInfo? _consumerInfo;
+    private string? lastQueue;
 
     public PollMessageTask(ILogger<PollMessageTask> logger,IServiceProvider serviceProvider,IStorageProvider storageProvider)
     {
@@ -48,7 +49,7 @@ internal class PollMessageTask:IPollMessageTask
             {
                 try
                 {
-                    currentMessage = await _storageProvider.PollNewMessageAsync(_consumerInfo.ConsumerOptions.Topic, stoppingToken);
+                    currentMessage=await PollNewMessageAsync(stoppingToken);
                 }
                 catch (Exception e)
                 {
@@ -143,7 +144,46 @@ internal class PollMessageTask:IPollMessageTask
         _logger.LogInformation($"{_consumerInfo.ConsumerOptions.Topic}主题消费者停止消费");
         IsRunning = false;
     }
-    
+
+    private async Task<Message?> PollNewMessageAsync(CancellationToken stoppingToken)
+    {
+        Message? message;
+        // 开启了随机队列，且上一个消息的队列名不是空
+        if (_consumerInfo!.ConsumerOptions.EnableRandomQueue)
+        {
+            var allQueues= await _storageProvider.PollAllQueuesAsync(_consumerInfo!.ConsumerOptions.Topic, stoppingToken);
+            if(allQueues.Any()==false)
+                message = await _storageProvider.PollNewMessageAsync(_consumerInfo!.ConsumerOptions.Topic, stoppingToken);
+            else if (allQueues.Count() == 1)
+            {
+                message = await _storageProvider.PollNewMessageAsync(_consumerInfo!.ConsumerOptions.Topic,allQueues[0], stoppingToken);
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(lastQueue)&&allQueues.Contains(lastQueue))
+                {
+                    allQueues.Remove(lastQueue);
+                }
+
+                var queue = GetRandomQueue(allQueues);
+                message = await _storageProvider.PollNewMessageAsync(_consumerInfo!.ConsumerOptions.Topic,queue, stoppingToken);
+            }
+            
+            if(message != null) lastQueue = message.Queue;
+        }
+        // 没有开启随机队列
+        else
+        {
+            message = await _storageProvider.PollNewMessageAsync(_consumerInfo!.ConsumerOptions.Topic, stoppingToken);
+        }
+        return message;
+    }
+    private  string GetRandomQueue(List<string> allQueues)
+    {
+        Random random = new Random();
+        int index = random.Next(allQueues.Count); // 生成一个随机索引
+        return allQueues[index]; // 返回对应索引的字符串
+    }
     #region Tracing
 
     private static void TracingBefore(Message message)

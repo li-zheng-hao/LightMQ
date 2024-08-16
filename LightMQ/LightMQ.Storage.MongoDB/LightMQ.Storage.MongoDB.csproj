@@ -3,8 +3,7 @@
     <PropertyGroup>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
-        <LangVersion>11.0</LangVersion>
+        <LangVersion>latestmajor</LangVersion>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>
@@ -15,6 +14,7 @@
         <RepositoryUrl>https://github.com/li-zheng-hao/LightMQ</RepositoryUrl>
         <Description>基于数据库的消息队列</Description>
         <PackageIcon>icon.png</PackageIcon>
+        <TargetFramework>net8.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>

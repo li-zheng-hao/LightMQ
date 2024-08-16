@@ -44,6 +44,11 @@ public class Message
     /// 消息头信息 反序列化为Dictionary[string, string] 类型
     /// </summary>
     public string? Header { get; set; }
+    
+    /// <summary>
+    /// 队列名
+    /// </summary>
+    public string? Queue{get;set;}
 }
 
 /// <summary>

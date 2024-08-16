@@ -8,7 +8,7 @@ namespace LightMQ.Publisher;
 
 public class MessagePublisher : IMessagePublisher
 {
-    protected static  DiagnosticListener _diagnosticListener =
+    private static DiagnosticListener _diagnosticListener =
         new DiagnosticListener(DiagnosticsListenserNames.DiagnosticListenerName);
 
     private readonly IStorageProvider _storageProvider;
@@ -20,18 +20,18 @@ public class MessagePublisher : IMessagePublisher
 
     public async Task PublishAsync<T>(string topic, T message) where T : class
     {
-        string data = message as string ?? JsonConvert.SerializeObject(message);
+        var msg=ConstructMessage(topic, null, message);
 
-        var msg = new Message()
-        {
-            Id = Guid.NewGuid().ToString(),
-            Topic = topic,
-            Data = data,
-            CreateTime = DateTime.Now,
-            Status = MessageStatus.Waiting,
-            RetryCount = 0,
-            ExecutableTime = DateTime.Now
-        };
+        TracingBefore(msg);
+
+        await _storageProvider.PublishNewMessageAsync(msg);
+
+        TracingAfter(msg);
+    }
+
+    public async Task PublishAsync<T>(string topic, T message, string queue) where T : class
+    {
+        var msg=ConstructMessage(topic, queue, message);
 
         TracingBefore(msg);
 
@@ -42,21 +42,22 @@ public class MessagePublisher : IMessagePublisher
 
     public async Task PublishAsync<T>(string topic, T message, object transaction) where T : class
     {
-        string data = message as string ?? JsonConvert.SerializeObject(message);
+        var msg=ConstructMessage(topic, null, message);
 
-        var msg = new Message()
-        {
-            Id = Guid.NewGuid().ToString(),
-            Topic = topic,
-            Data = data,
-            CreateTime = DateTime.Now,
-            Status = MessageStatus.Waiting,
-            RetryCount = 0,
-            ExecutableTime = DateTime.Now
-        };
         TracingBefore(msg);
 
         await _storageProvider.PublishNewMessageAsync(msg, transaction);
+
+        TracingAfter(msg);
+    }
+
+    public async Task PublishAsync<T>(string topic, T message, object transaction, string queue) where T : class
+    {
+        var msg=ConstructMessage(topic, queue, message);
+
+        TracingBefore(msg);
+
+        await _storageProvider.PublishNewMessageAsync(msg,transaction);
 
         TracingAfter(msg);
     }
@@ -67,17 +68,8 @@ public class MessagePublisher : IMessagePublisher
 
         foreach (var item in message)
         {
-            string data = item as string ?? JsonConvert.SerializeObject(item);
-            var msg = new Message()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Topic = topic,
-                Data = data,
-                CreateTime = DateTime.Now,
-                Status = MessageStatus.Waiting,
-                RetryCount = 0,
-                ExecutableTime = DateTime.Now
-            };
+            var msg=ConstructMessage(topic, null, item);
+
             messages.Add(msg);
 
             TracingBefore(msg);
@@ -96,27 +88,36 @@ public class MessagePublisher : IMessagePublisher
         List<Message> messages = new();
         foreach (var item in message)
         {
-            string data = item as string ?? JsonConvert.SerializeObject(item);
-            var msg = new Message()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Topic = topic,
-                Data = data,
-                CreateTime = DateTime.Now,
-                Status = MessageStatus.Waiting,
-                RetryCount = 0,
-                ExecutableTime = DateTime.Now
-            };
+            var msg=ConstructMessage(topic, null, item);
+            
             messages.Add(msg);
 
             TracingBefore(msg);
         }
 
         await _storageProvider.PublishNewMessagesAsync(messages, transaction);
+        
         foreach (var msg in messages)
         {
             TracingAfter(msg);
         }
+    }
+
+    private Message ConstructMessage<T>(string topic, string? queue, T message)
+    {
+        string data = message as string ?? JsonConvert.SerializeObject(message);
+        var msg = new Message()
+        {
+            Id = Guid.NewGuid().ToString(),
+            Topic = topic,
+            Data = data,
+            CreateTime = DateTime.Now,
+            Status = MessageStatus.Waiting,
+            RetryCount = 0,
+            ExecutableTime = DateTime.Now,
+            Queue = queue
+        };
+        return msg;
     }
 
     #region tracing

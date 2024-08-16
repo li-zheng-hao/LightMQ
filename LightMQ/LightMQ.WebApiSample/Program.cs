@@ -1,5 +1,6 @@
 using LightMQ;
 using LightMQ.Storage.MongoDB.MongoMQ;
+using LightMQ.Storage.SqlServer;
 using LightMQ.WebApiSample;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,11 +13,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
-    // it.UseSqlServer("server=localhost;uid=sa;pwd=Abc.12345;database=Test;TrustServerCertificate=true;");
-    it.UseMongoDB("","LightMQTest");
+    // it.UseSqlServer(@"Server=localhost\SQLEXPRESS;Database=LightMQTest;Trusted_Connection=True;");
+    it.UseMongoDB("mongodb://localhost:27017","LightMQTest");
 });
 
 builder.Services.AddScoped<Test2Consumer>();
+builder.Services.AddScoped<TestQueueConsumer>();
 
 var app = builder.Build();
 

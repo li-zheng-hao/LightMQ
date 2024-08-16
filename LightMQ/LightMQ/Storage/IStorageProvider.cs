@@ -54,10 +54,27 @@ public interface IStorageProvider
     /// <summary>
     /// 拉取新消息
     /// </summary>
-    /// <param name="stoppingToken"></param>
+    /// <param name="topic"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task<Message?> PollNewMessageAsync(string topic,CancellationToken cancellationToken=default);
+    /// <summary>
+    /// 拉取不在指定队列名中的新消息
+    /// </summary>
+    /// <param name="topic"></param>
+    /// <param name="queue"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<Message?> PollNewMessageAsync(string topic,string queue,CancellationToken cancellationToken=default);
+    
 
+    /// <summary>
+    /// 查找待消费消息的queue
+    /// </summary>
+    /// <param name="topic"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<List<string>> PollAllQueuesAsync(string topic,CancellationToken cancellationToken=default);
     /// <summary>
     /// 消息成功ACK
     /// </summary>
