@@ -127,7 +127,7 @@ public class MongoStorageProvider:IStorageProvider
             .ToListAsync(cancellationToken);
 
         // 提取 Queue 字段并转换为 List<string>
-        return result.Select(r => r["Queue"].AsString).ToList();
+        return result.Where(it=>it["Queue"].IsString).Select(r => r["Queue"].AsString).ToList();
     }
 
     public Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)
