@@ -244,7 +244,7 @@ public class SqlServerProviderTests : IAsyncLifetime
             Data = "PollData",
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
-            ExecutableTime = DateTime.Now,
+            ExecutableTime = DateTime.Now.AddMinutes(-1),
             RetryCount = 0,
             Header = "PollHeader",
             Queue = "PollQueue"
@@ -402,7 +402,7 @@ public class SqlServerProviderTests : IAsyncLifetime
             Data = "PollData",
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
-            ExecutableTime = DateTime.Now,
+            ExecutableTime = DateTime.Now.AddMinutes(-1),
             RetryCount = 0,
             Header = "PollHeader",
             Queue = "PollQueue"

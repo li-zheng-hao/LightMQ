@@ -65,7 +65,7 @@ public interface IStorageProvider
     /// <param name="queue"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task<Message?> PollNewMessageAsync(string topic,string queue,CancellationToken cancellationToken=default);
+    Task<Message?> PollNewMessageAsync(string topic,string? queue,CancellationToken cancellationToken=default);
     
 
     /// <summary>
@@ -74,7 +74,7 @@ public interface IStorageProvider
     /// <param name="topic"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task<List<string>> PollAllQueuesAsync(string topic,CancellationToken cancellationToken=default);
+    Task<List<string?>> PollAllQueuesAsync(string topic,CancellationToken cancellationToken=default);
     /// <summary>
     /// 消息成功ACK
     /// </summary>

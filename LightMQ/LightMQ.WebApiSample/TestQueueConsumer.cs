@@ -20,7 +20,7 @@ public class TestQueueConsumer:IMessageConsumer
     public async Task<bool> ConsumeAsync(string message, CancellationToken cancellationToken)
     {
         Console.WriteLine("消费消息"+message);
-        await Task.Delay(2_000,cancellationToken);
+        await Task.Delay(1_000,cancellationToken);
         return true;
     }
 

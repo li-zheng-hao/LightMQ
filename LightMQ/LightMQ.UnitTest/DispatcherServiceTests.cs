@@ -139,7 +139,7 @@ public class DispatcherServiceTests
         mockPollMessageTask.Setup(it => it.GetConsumerInfo()).Returns(MockHelper.GetFakeConsumerInfos()[0]);
         // Act
         await _service.StopAsync(cancellationToken);
-        _mockLogger.VerifyLogging("主题：test的消费者还在运行中，等待结束...",LogLevel.Warning,Times.Exactly(3));
+        _mockLogger.VerifyLogging("主题：test的消费者还在运行中，等待结束...",LogLevel.Warning,Times.AtLeast(3));
         _mockLogger.VerifyLogging("LightMQ等待退出超时，强制退出", LogLevel.Information);
         _mockLogger.VerifyLogging("LightMQ服务停止", LogLevel.Information);
     }

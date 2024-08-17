@@ -39,7 +39,7 @@ public class SqlServerStorageProvider : IStorageProvider
                 new SqlParameter("@ExecutableTime", message.ExecutableTime),
                 new SqlParameter("@RetryCount", message.RetryCount),
                 new SqlParameter("@Header", message.Header??string.Empty),
-                new SqlParameter("@Queue", message.Queue),
+                new SqlParameter("@Queue", message.Queue??string.Empty),
             }).ConfigureAwait(false);
     }
 
@@ -60,8 +60,8 @@ public class SqlServerStorageProvider : IStorageProvider
                 new SqlParameter("@Status", message.Status),
                 new SqlParameter("@ExecutableTime", message.ExecutableTime),
                 new SqlParameter("@RetryCount", message.RetryCount),
-                new SqlParameter("@Header", message.Header),
-                new SqlParameter("@Queue", message.Queue)
+                new SqlParameter("@Header", message.Header??string.Empty),
+                new SqlParameter("@Queue", message.Queue??string.Empty)
             }).ConfigureAwait(false);
     }
 
@@ -206,7 +206,7 @@ public class SqlServerStorageProvider : IStorageProvider
             });
     }
 
-    public async Task<List<string>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
+    public async Task<List<string?>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
     {
         var sql =
             @$"SELECT Queue
@@ -224,13 +224,13 @@ GROUP BY Queue;";
         command.Parameters.AddWithValue("@StatusOrigin",  MessageStatus.Waiting);
         command.Parameters.AddWithValue("@ExecutableTime",  DateTime.Now);
 
-        var queues = new List<string>();
+        var queues = new List<string?>();
 
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                queues.Add(reader.GetString(0)); // 获取 Queue 列的值
+                queues.Add(reader.SafeGetString(0)); // 获取 Queue 列的值
             }
         }
 

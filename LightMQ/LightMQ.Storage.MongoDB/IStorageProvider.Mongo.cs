@@ -96,7 +96,7 @@ public class MongoStorageProvider:IStorageProvider
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
     }
 
-    public Task<Message?> PollNewMessageAsync(string topic, string queue, CancellationToken cancellationToken = default)
+    public Task<Message?> PollNewMessageAsync(string topic, string? queue, CancellationToken cancellationToken = default)
     {
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
         return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
@@ -108,7 +108,7 @@ public class MongoStorageProvider:IStorageProvider
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
     }
 
-    public async Task<List<string>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
+    public async Task<List<string?>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
     {
         var collection= _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName);
@@ -127,7 +127,12 @@ public class MongoStorageProvider:IStorageProvider
             .ToListAsync(cancellationToken);
 
         // 提取 Queue 字段并转换为 List<string>
-        return result.Where(it=>it["Queue"].IsString).Select(r => r["Queue"].AsString).ToList();
+        return result.Select(r =>
+        {
+            if(r["Queue"].IsString)
+                return r["Queue"].AsString;
+            return null;
+        }).ToList();
     }
 
     public Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)

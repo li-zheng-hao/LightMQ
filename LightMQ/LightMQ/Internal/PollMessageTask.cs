@@ -160,7 +160,7 @@ internal class PollMessageTask:IPollMessageTask
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(lastQueue)&&allQueues.Contains(lastQueue))
+                if (allQueues.Contains(lastQueue))
                 {
                     allQueues.Remove(lastQueue);
                 }
@@ -178,7 +178,7 @@ internal class PollMessageTask:IPollMessageTask
         }
         return message;
     }
-    private  string GetRandomQueue(List<string> allQueues)
+    private  string? GetRandomQueue(List<string?> allQueues)
     {
         Random random = new Random();
         int index = random.Next(allQueues.Count); // 生成一个随机索引

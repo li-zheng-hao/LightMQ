@@ -6,6 +6,7 @@ using MongoDB.Driver;
 
 namespace LightMQ.IntegrationTest;
 
+[Collection("Mongo")]
 public class MongoRegressionTest:IAsyncLifetime
 {
     private readonly MongoStorageProvider _mongoStorageProvider;
@@ -47,10 +48,11 @@ public class MongoRegressionTest:IAsyncLifetime
     public async Task V2_0_0_PollAllQueueAsync_WithNullValue()
     {
         // Arrange
+        string topic = "TestTopic";
         var message = new Message
         {
             Id = Guid.NewGuid().ToString(),
-            Topic = "TestTopic",
+            Topic = topic,
             Data = "TestData",
             CreateTime = DateTime.Now,
             Status = MessageStatus.Waiting,
@@ -61,10 +63,13 @@ public class MongoRegressionTest:IAsyncLifetime
 
         // Act
         await _mongoStorageProvider.PublishNewMessageAsync(message);
-        var queues=await _mongoStorageProvider.PollAllQueuesAsync("TestTopic");
+        var queues=await _mongoStorageProvider.PollAllQueuesAsync(topic);
         
         // Assert
-        Assert.Empty(queues);
+        Assert.True(queues[0]==null);
+
+        var polledMessage = await _mongoStorageProvider.PollNewMessageAsync(topic, queues[0]);
+        Assert.NotNull(polledMessage);
     }
 
 }

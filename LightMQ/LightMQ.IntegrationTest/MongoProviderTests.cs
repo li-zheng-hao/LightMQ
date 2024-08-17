@@ -6,6 +6,7 @@ using MongoDB.Driver;
 
 namespace LightMQ.IntegrationTest;
 
+[Collection("Mongo")]
 public class MongoProviderTests : IAsyncLifetime
 {
     private readonly MongoStorageProvider _mongoStorageProvider;

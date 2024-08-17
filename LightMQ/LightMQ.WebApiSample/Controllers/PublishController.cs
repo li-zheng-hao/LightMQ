@@ -48,7 +48,7 @@ public class PublishController : ControllerBase
             if (it % 5 == 0)
             {
                 message = $"{it}:queue1";
-                await messagePublisher.PublishAsync<string>("test-queue", message, "queue1");
+                await messagePublisher.PublishAsync<string>("test-queue", message,null);
             }
             else if (it % 5 == 1)
             {

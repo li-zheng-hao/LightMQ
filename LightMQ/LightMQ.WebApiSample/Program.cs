@@ -13,8 +13,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
-    // it.UseSqlServer(@"Server=localhost\SQLEXPRESS;Database=LightMQTest;Trusted_Connection=True;");
-    it.UseMongoDB("mongodb://root:chaojiyonghu@172.10.4.138:27017","LightMQTest");
+    // it.UseSqlServer(Environment.GetEnvironmentVariable("APP_MSSQL_CONNECTIONSTRING")!);
+    it.UseMongoDB( Environment.GetEnvironmentVariable("APP_MONGO_CONNECTIONSTRING")!,"LightMQTest");
 });
 
 builder.Services.AddScoped<Test2Consumer>();
