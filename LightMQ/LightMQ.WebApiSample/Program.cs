@@ -14,7 +14,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
     // it.UseSqlServer(@"Server=localhost\SQLEXPRESS;Database=LightMQTest;Trusted_Connection=True;");
-    it.UseMongoDB("mongodb://localhost:27017","LightMQTest");
+    it.UseMongoDB("mongodb://root:chaojiyonghu@172.10.4.138:27017","LightMQTest");
 });
 
 builder.Services.AddScoped<Test2Consumer>();
@@ -28,8 +28,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
 
 app.UseAuthorization();
 

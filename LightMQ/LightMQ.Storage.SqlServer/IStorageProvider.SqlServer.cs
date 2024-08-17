@@ -114,14 +114,15 @@ public class SqlServerStorageProvider : IStorageProvider
     public async Task ResetOutOfDateMessagesAsync(CancellationToken cancellationToken = default)
     {
         var sql =
-            $"update {_mqOptions.Value.TableName} set Status=@Status where CreateTime<=@CreateTime and Status=@StatusOrigin";
+            $"update {_mqOptions.Value.TableName} set Status=@Status, ExecutableTime=@NowTime where ExecutableTime<=@ExecutableTime and Status=@StatusOrigin";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
         await connection.ExecuteNonQueryAsync(sql,
             sqlParams: new object[]
             {
                 new SqlParameter("@Status", MessageStatus.Waiting),
-                new SqlParameter("@CreateTime", DateTime.Now.Subtract(_mqOptions.Value.MessageTimeoutDuration)),
+                new SqlParameter("@NowTime", DateTime.Now),
+                new SqlParameter("@ExecutableTime", DateTime.Now.Subtract(_mqOptions.Value.MessageTimeoutDuration)),
                 new SqlParameter("@StatusOrigin", MessageStatus.Processing)
             });
     }
