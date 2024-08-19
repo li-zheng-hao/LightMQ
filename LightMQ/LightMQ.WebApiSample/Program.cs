@@ -1,5 +1,5 @@
 using LightMQ;
-using LightMQ.Storage.MongoDB.MongoMQ;
+using LightMQ.Storage.MongoDB;
 using LightMQ.Storage.SqlServer;
 using LightMQ.WebApiSample;
 

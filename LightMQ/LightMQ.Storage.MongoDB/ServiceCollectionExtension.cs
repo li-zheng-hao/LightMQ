@@ -1,8 +1,6 @@
 ﻿using LightMQ.Options;
-using Microsoft.Extensions.DependencyInjection;
-using SW.Core.MongoMQ;
 
-namespace LightMQ.Storage.MongoDB.MongoMQ;
+namespace LightMQ.Storage.MongoDB;
 
 public static class ServiceCollectionExtension
 {

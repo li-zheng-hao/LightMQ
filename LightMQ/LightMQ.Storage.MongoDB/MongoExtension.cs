@@ -1,11 +1,7 @@
 ﻿using LightMQ.Options;
-using LightMQ.Publisher;
-using LightMQ.Storage;
-using LightMQ.Storage.MongoDB;
 using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Driver;
 
-namespace SW.Core.MongoMQ;
+namespace LightMQ.Storage.MongoDB;
 
 public class MongoExtension:IExtension
 {
