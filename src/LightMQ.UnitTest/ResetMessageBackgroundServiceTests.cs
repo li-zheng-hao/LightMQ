@@ -36,15 +36,13 @@ public class ResetMessageBackgroundServiceTests
     {
         // Arrange
         var cancellationToken = new CancellationTokenSource();
-        cancellationToken.CancelAfter(3000); // 设置取消时间
+        cancellationToken.CancelAfter(500); // 设置取消时间
 
         _mockStorageProvider.Setup(sp => sp.ResetOutOfDateMessagesAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await _service.StartAsync(cancellationToken.Token);
-        await Task.Delay(1500); // 等待一段时间以确保 ExecuteAsync 被调用
-        await _service.StopAsync(cancellationToken.Token); // 停止服务
+        await _service.ExecuteAsync(cancellationToken.Token);
 
         // Assert
         _mockStorageProvider.Verify(sp => sp.ResetOutOfDateMessagesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);

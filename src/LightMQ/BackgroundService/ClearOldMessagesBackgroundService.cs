@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace LightMQ.BackgroundService;
 
-public class ClearOldMessagesBackgroundService : Microsoft.Extensions.Hosting.BackgroundService
+public class ClearOldMessagesBackgroundService : IBackgroundService
 {
     private readonly ILogger<ClearOldMessagesBackgroundService> _logger;
     private readonly IStorageProvider _storageProvider;
@@ -20,7 +20,7 @@ public class ClearOldMessagesBackgroundService : Microsoft.Extensions.Hosting.Ba
         _options = options;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {

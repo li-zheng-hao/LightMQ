@@ -29,7 +29,7 @@ public class ClearOldMessagesBackgroundServiceTests
         var cancellationToken = cancellationTokenSource.Token;
 
         // Act
-        var executeTask = _service.StartAsync(cancellationToken);
+        var executeTask = _service.ExecuteAsync(cancellationToken);
         // 等待一段时间以确保 ExecuteAsync 被调用
         await Task.Delay(200);
         cancellationTokenSource.Cancel();
@@ -48,7 +48,7 @@ public class ClearOldMessagesBackgroundServiceTests
         cancellationTokenSource.Cancel();
         
         // Act
-        var executeTask = _service.StartAsync(cancellationToken);
+        var executeTask = _service.ExecuteAsync(cancellationToken);
         // 等待一段时间以确保 ExecuteAsync 被调用
         await executeTask;
 

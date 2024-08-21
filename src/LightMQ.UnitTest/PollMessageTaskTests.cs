@@ -30,7 +30,104 @@ public class PollMessageTaskTests
         _pollMessageTask =
             new PollMessageTask(_mockLogger.Object, _mockServiceProvider.Object, _mockStorageProvider.Object);
     }
+    [Fact]
+    public async Task ConsumeMessageUnhandledException_WhenConsumeMessageThrowsException_ShouldNack()
+    {
+        // Arrange
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                PollInterval = TimeSpan.FromSeconds(0.1),
+                RetryCount = 3,
+                RetryInterval = TimeSpan.FromSeconds(1),
+                EnableRandomQueue = true
+            },
+            ConsumerType = typeof(FakeConsumer)
+        };
+        var message = new Message
+        {
+            Id = "1",
+            Topic = "test-topic",
+            Data = "test data",
+            Status = MessageStatus.Waiting,
+            RetryCount = 3,
+            Queue = null
+        };
+        
+        _mockStorageProvider.SetupSequence(sp =>
+                sp.PollNewMessageAsync(consumerInfo.ConsumerOptions.Topic, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(message)
+            .ReturnsAsync((Message?)null)
+            ;
 
+        _mockStorageProvider.SetupSequence(it =>
+                it.PollAllQueuesAsync(consumerInfo.ConsumerOptions.Topic, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string?> { null });
+
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(FakeConsumer)))
+            .Returns(new FakeConsumer() { ThrowException = true });
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.CancelAfter(500); // 设置取消时间
+
+        // Act
+        await _pollMessageTask.RunAsync(consumerInfo, cancellationTokenSource.Token);
+
+        // Assert
+        _mockStorageProvider.Verify(sp => sp.NackMessageAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+    
+    [Fact]
+    public async Task ConsumeMessageUnhandledException_WhenConsumeMessageThrowsException_ShouldUpdateRetry()
+    {
+        // Arrange
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                PollInterval = TimeSpan.FromSeconds(0.1),
+                RetryCount = 3,
+                RetryInterval = TimeSpan.FromSeconds(1),
+                EnableRandomQueue = true
+            },
+            ConsumerType = typeof(FakeConsumer)
+        };
+        var message = new Message
+        {
+            Id = "1",
+            Topic = "test-topic",
+            Data = "test data",
+            Status = MessageStatus.Waiting,
+            RetryCount = 0,
+            Queue = null
+        };
+        
+        _mockStorageProvider.SetupSequence(sp =>
+                sp.PollNewMessageAsync(consumerInfo.ConsumerOptions.Topic, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(message)
+            .ReturnsAsync((Message?)null)
+            ;
+
+        _mockStorageProvider.SetupSequence(it =>
+                it.PollAllQueuesAsync(consumerInfo.ConsumerOptions.Topic, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string?> { null });
+
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(FakeConsumer)))
+            .Returns(new FakeConsumer() { ThrowException = true });
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.CancelAfter(500); // 设置取消时间
+
+        // Act
+        await _pollMessageTask.RunAsync(consumerInfo, cancellationTokenSource.Token);
+
+        // Assert
+        _mockStorageProvider.Verify(sp => sp.UpdateRetryInfoAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+    
     [Fact]
     public async Task RunAsync_PickRandomQueueMessage_WhenPublishSingleMessageWithNullQueue()
     {

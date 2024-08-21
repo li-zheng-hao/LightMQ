@@ -48,34 +48,4 @@ internal static class DbConnectionExtensions
 
         return result;
     }
-
-    public static async Task<T> ExecuteScalarAsync<T>(this DbConnection connection, string sql,
-        params object[] sqlParams)
-    {
-        if (connection.State == ConnectionState.Closed) await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        await using var _ = command.ConfigureAwait(false);
-        command.CommandType = CommandType.Text;
-        command.CommandText = sql;
-        foreach (var param in sqlParams)
-        {
-            command.Parameters.Add(param);
-        }
-
-        var objValue = await command.ExecuteScalarAsync().ConfigureAwait(false);
-
-        T result = default!;
-        if (objValue != null)
-        {
-            var returnType = typeof(T);
-            var converter = TypeDescriptor.GetConverter(returnType);
-            if (converter.CanConvertFrom(objValue.GetType()))
-                result = (T)converter.ConvertFrom(objValue)!;
-            else
-                result = (T)Convert.ChangeType(objValue, returnType);
-        }
-
-        return result;
-    }
 }

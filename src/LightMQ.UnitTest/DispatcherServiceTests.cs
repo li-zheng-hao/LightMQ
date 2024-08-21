@@ -3,6 +3,7 @@ using FluentAssertions;
 using LightMQ.BackgroundService;
 using LightMQ.Internal;
 using LightMQ.Options;
+using LightMQ.Storage;
 using LightMQ.UnitTest.InternalHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,11 +21,14 @@ public class DispatcherServiceTests
     private readonly Mock<IServiceScope> _mockServiceScope;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly Mock<IConsumerProvider> _mockConsumerProvider;
+    private readonly Mock<IEnumerable<IBackgroundService>> _mockBackgroundServices;
+    private readonly Mock<IStorageProvider> _mockStorageProvider;
 
     public DispatcherServiceTests()
     {
         _mockLogger = new Mock<ILogger<DispatcherService>>();
         _mockServiceProvider = new Mock<IServiceProvider>();
+        _mockStorageProvider = new Mock<IStorageProvider>();
         _mockOptions = new Mock<IOptions<LightMQOptions>>();
         _mockServiceScope = new Mock<IServiceScope>();
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
@@ -43,8 +47,9 @@ public class DispatcherServiceTests
         _mockOptions.Setup(o => o.Value).Returns(options);
 
         _mockConsumerProvider=new Mock<IConsumerProvider>();
+        _mockBackgroundServices=new Mock<IEnumerable<IBackgroundService>>();
         
-        _service = new DispatcherService(_mockLogger.Object, _mockServiceProvider.Object, _mockOptions.Object,_mockConsumerProvider.Object);
+        _service = new DispatcherService(_mockLogger.Object, _mockServiceProvider.Object,_mockStorageProvider.Object, _mockOptions.Object,_mockConsumerProvider.Object,_mockBackgroundServices.Object);
     }
 
     [Fact]

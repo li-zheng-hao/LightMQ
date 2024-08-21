@@ -28,10 +28,11 @@ public static class ServiceCollectionExtension
         serviceCollection.AddSingleton<IMessagePublisher, MessagePublisher>();
         serviceCollection.AddSingleton<IConsumerProvider, ConsumerProvider>();
         serviceCollection.AddTransient<IPollMessageTask,PollMessageTask>();
-        serviceCollection.AddHostedService<InitStorageBackgroundService>();
-        serviceCollection.AddHostedService<ResetMessageBackgroundService>();
-        serviceCollection.AddHostedService<ClearOldMessagesBackgroundService>();
         serviceCollection.AddHostedService<DispatcherService>();
+
+        serviceCollection.AddSingleton<IBackgroundService,ResetMessageBackgroundService>();
+        serviceCollection.AddSingleton<IBackgroundService,ClearOldMessagesBackgroundService>();
+
         return serviceCollection;
     }
 }

@@ -8,7 +8,8 @@ namespace LightMQ.Storage.MongoDB;
 
 public class MongoStorageProvider:IStorageProvider
 {
-    private readonly IMongoClient _mongoClient;
+    private IMongoClient? _mongoClient;
+    private object locker = new();
     private readonly IOptions<LightMQOptions> _mqOptions;
     private readonly IOptions<MongoDBOptions> _mongoOptions;
 
@@ -16,7 +17,18 @@ public class MongoStorageProvider:IStorageProvider
     {
         _mqOptions = mqOptions;
         _mongoOptions = mongoOptions;
-        _mongoClient=new MongoClient(_mongoOptions.Value.ConnectionString);
+    }
+
+    private IMongoClient GetMongoClient()
+    {
+        if (_mongoClient == null)
+        {
+            lock (locker)
+            {
+                _mongoClient=new MongoClient(_mongoOptions.Value.ConnectionString);
+            }
+        }
+        return _mongoClient;
     }
     public Task PublishNewMessageAsync(Message message,
         CancellationToken cancellationToken = default)
@@ -37,7 +49,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task ClearOldMessagesAsync(CancellationToken cancellationToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .DeleteManyAsync(it => it.CreateTime <= DateTime.Now.Subtract(_mqOptions.Value.MessageExpireDuration),
                 cancellationToken: cancellationToken);
@@ -45,7 +57,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task NackMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .UpdateOneAsync(it => it.Id == message.Id,
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Failed),
@@ -55,7 +67,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task ResetMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .UpdateOneAsync(it => it.Id == message.Id,
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Waiting),
@@ -64,7 +76,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task UpdateRetryInfoAsync(Message message, CancellationToken cancellationToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .UpdateOneAsync(it => it.Id == message.Id,
                 Builders<Message>.Update.Set(it => it.RetryCount, message.RetryCount)
@@ -75,7 +87,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task ResetOutOfDateMessagesAsync(CancellationToken cancellationToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .UpdateManyAsync(it => it.ExecutableTime <= DateTime.Now.Subtract(_mqOptions.Value.MessageTimeoutDuration)
                                    &&it.Status==MessageStatus.Processing,
@@ -87,7 +99,7 @@ public class MongoStorageProvider:IStorageProvider
     public Task<Message?> PollNewMessageAsync(string topic, CancellationToken cancellationToken = default)
     {
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .FindOneAndUpdateAsync(it => it.Topic == topic && it.Status == MessageStatus.Waiting
                 &&it.ExecutableTime<=DateTime.Now,
@@ -99,7 +111,7 @@ public class MongoStorageProvider:IStorageProvider
     public Task<Message?> PollNewMessageAsync(string topic, string? queue, CancellationToken cancellationToken = default)
     {
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .FindOneAndUpdateAsync(it => it.Topic == topic && it.Status == MessageStatus.Waiting
                                                            &&it.ExecutableTime<=DateTime.Now&&it.Queue==queue,
@@ -110,7 +122,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public async Task<List<string?>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
     {
-        var collection= _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        var collection= GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName);
         
         var result = await collection.Aggregate()
@@ -137,7 +149,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task AckMessageAsync(Message currentMessage, CancellationToken stoppingToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .UpdateOneAsync( it => it.Id == currentMessage.Id,
                 Builders<Message>.Update.Set(it => it.Status, MessageStatus.Success),
@@ -146,7 +158,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public async Task InitTables(CancellationToken stoppingToken = default)
     {
-        var db=_mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName);
+        var db=GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName);
         var names =
             (await db.ListCollectionNamesAsync(cancellationToken: stoppingToken).ConfigureAwait(false))
             .ToList();
@@ -158,7 +170,7 @@ public class MongoStorageProvider:IStorageProvider
 
     public Task PublishNewMessagesAsync(List<Message> messages)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .InsertManyAsync(messages);
     }

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace LightMQ.BackgroundService;
 
-public class ResetMessageBackgroundService:Microsoft.Extensions.Hosting.BackgroundService
+public class ResetMessageBackgroundService:IBackgroundService
 {
     private readonly ILogger<ResetMessageBackgroundService> _logger;
     private readonly IStorageProvider _storageProvider;
@@ -18,7 +18,7 @@ public class ResetMessageBackgroundService:Microsoft.Extensions.Hosting.Backgrou
         _options = options;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
