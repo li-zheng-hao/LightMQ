@@ -33,7 +33,7 @@ public class MongoStorageProvider:IStorageProvider
     public Task PublishNewMessageAsync(Message message,
         CancellationToken cancellationToken = default)
     {
-        return _mongoClient.GetDatabase(_mongoOptions.Value.DatabaseName)
+        return GetMongoClient().GetDatabase(_mongoOptions.Value.DatabaseName)
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .InsertOneAsync(message, cancellationToken: cancellationToken);
     }
