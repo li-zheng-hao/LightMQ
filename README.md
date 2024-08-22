@@ -104,3 +104,8 @@ public class ConsumerOptions
 ```
 
 More examples can be found under the Sample category.
+
+## Develop Tool
+
+![JetBrains](https://resources.jetbrains.com/storage/products/company/brand/logos/Rider_icon.png)
+
