@@ -14,6 +14,7 @@ Features：
 1. Supports retries
 2. Supports multiple queues
 3. Supports concurrent consumption
+4. Support opentelemetry tracing
 
 ## Test Coverage
 
