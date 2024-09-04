@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -8,7 +8,7 @@
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>
         <Version>2.1.0-preview</Version>
-        <Title>LightMQ</Title>
+        <Title>LightMQ.Storage.Sqlite</Title>
         <Authors>lizhenghao</Authors>
         <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>
         <RepositoryUrl>https://github.com/li-zheng-hao/LightMQ</RepositoryUrl>
@@ -16,12 +16,16 @@
         <PackageIcon>icon.png</PackageIcon>
         <TargetFramework>net8.0</TargetFramework>
     </PropertyGroup>
+
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="7.0.0"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1"/>
-        <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.1"/>
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+      <PackageReference Include="Dapper" Version="2.1.35" />
+      <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\LightMQ\LightMQ.csproj" />
+    </ItemGroup>
+
     <ItemGroup>
       <None Include="..\..\icon.png">
         <Pack>True</Pack>

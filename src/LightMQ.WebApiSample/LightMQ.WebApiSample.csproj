@@ -14,8 +14,13 @@
 
     <ItemGroup>
       <ProjectReference Include="..\LightMQ.Storage.MongoDB\LightMQ.Storage.MongoDB.csproj" />
+      <ProjectReference Include="..\LightMQ.Storage.Sqlite\LightMQ.Storage.Sqlite.csproj" />
       <ProjectReference Include="..\LightMQ.Storage.SqlServer\LightMQ.Storage.SqlServer.csproj" />
       <ProjectReference Include="..\LightMQ\LightMQ.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="lightmq.db" />
     </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 using LightMQ;
 using LightMQ.Storage.MongoDB;
+using LightMQ.Storage.Sqlite;
 using LightMQ.Storage.SqlServer;
 using LightMQ.WebApiSample;
 
@@ -14,7 +15,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddLightMQ(it =>
 {
     // it.UseSqlServer(Environment.GetEnvironmentVariable("APP_MSSQL_CONNECTIONSTRING")!);
-    it.UseMongoDB( Environment.GetEnvironmentVariable("APP_MONGO_CONNECTIONSTRING")!,"LightMQTest");
+    // it.UseMongoDB( Environment.GetEnvironmentVariable("APP_MONGO_CONNECTIONSTRING")!,"LightMQTest");
+    it.UseSqlite();
 });
 
 builder.Services.AddScoped<Test2Consumer>();

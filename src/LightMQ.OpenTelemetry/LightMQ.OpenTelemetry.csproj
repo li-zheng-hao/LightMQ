@@ -7,7 +7,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>
-        <Version>2.0.3</Version>
+        <Version>2.1.0-preview</Version>
         <Title>LightMQ.OpenTelemetry</Title>
         <Authors>lizhenghao</Authors>
         <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>
