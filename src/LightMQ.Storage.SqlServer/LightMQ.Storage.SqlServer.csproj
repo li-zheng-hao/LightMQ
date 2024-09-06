@@ -7,7 +7,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>
-        <Version>2.1.0-preview</Version>
+        <Version>2.1.0-preview2</Version>
         <Title>LightMQ.Storage.SqlServer</Title>
         <Authors>lizhenghao</Authors>
         <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>

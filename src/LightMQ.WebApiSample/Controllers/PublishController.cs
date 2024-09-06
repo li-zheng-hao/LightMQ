@@ -37,6 +37,30 @@ public class PublishController : ControllerBase
         return Ok(num);
     }
 
+    [HttpPost("publish-batch")]
+    public async Task<IActionResult> PublishBatch([FromServices] IMessagePublisher messagePublisher)
+    {
+        int num = 1;
+        // 60秒
+        // var cancel = new CancellationTokenSource(60 * 1000);
+        // while (!cancel.IsCancellationRequested)
+        // {
+        //     await messagePublisher.PublishAsync("test", "111");
+        //     num++;
+        //     Console.WriteLine(num);
+        // }
+        Stopwatch sw = new();
+        sw.Restart();
+        
+        var data=Enumerable.Range(1, 5).Select(it => it.ToString()).ToList();
+        foreach (var str in data)
+        {
+            await messagePublisher.PublishAsync<string>("test", str);
+        }
+        _logger.LogInformation($" {sw.ElapsedMilliseconds}ms");
+        return Ok(num);
+    }
+
     [HttpPost("publish-with-queue")]
     public async Task<IActionResult> PublishWithQueue([FromServices] IMessagePublisher messagePublisher)
     {

@@ -132,9 +132,12 @@ public class SqliteStorageProvider : IStorageProvider
         var sql = @$"
     UPDATE {_mqOptions.Value.TableName} 
     SET Status = @Status 
-    WHERE Topic = @Topic 
-    AND Status = @StatusOrigin 
-    AND ExecutableTime <= @ExecutableTime 
+    WHERE ROWID = (
+        SELECT MIN(ROWID) FROM {_mqOptions.Value.TableName} 
+        WHERE Topic = @Topic 
+        AND Status = @StatusOrigin 
+        AND ExecutableTime <= @ExecutableTime 
+    )
     RETURNING Id, Topic, Data, CreateTime, Status, ExecutableTime, RetryCount, Header, Queue";
         var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
@@ -154,10 +157,12 @@ public class SqliteStorageProvider : IStorageProvider
         var sql = @$"
     UPDATE {_mqOptions.Value.TableName} 
     SET Status = @Status 
-    WHERE Topic = @Topic 
-    AND Status = @StatusOrigin 
-    AND ExecutableTime <= @ExecutableTime 
-    AND Queue = @Queue
+    WHERE ROWID = (
+        SELECT MIN(ROWID) FROM {_mqOptions.Value.TableName} 
+        WHERE Topic = @Topic 
+        AND Status = @StatusOrigin 
+        AND ExecutableTime <= @ExecutableTime 
+    )
     RETURNING Id, Topic, Data, CreateTime, Status, ExecutableTime, RetryCount, Header, Queue";
         var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
