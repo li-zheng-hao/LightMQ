@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace LightMQ;
 
-public class DispatcherService :IHostedService
+public class DispatcherService : IHostedService
 {
     private readonly ILogger<DispatcherService> _logger;
     private readonly IServiceProvider _serviceProvider;
@@ -40,11 +40,11 @@ public class DispatcherService :IHostedService
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public  Task StartAsync(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         return Run(cancellationToken);
     }
@@ -112,7 +112,7 @@ public class DispatcherService :IHostedService
 
         try
         {
-            var tokenSource = new CancellationTokenSource();
+            using var tokenSource = new CancellationTokenSource();
             tokenSource.CancelAfter(_options.Value.ExitTimeOut);
             while (true)
             {
@@ -134,8 +134,11 @@ public class DispatcherService :IHostedService
         {
             _logger.LogInformation("LightMQ等待退出超时，强制退出");
         }
+        finally
+        {
+            _cancel.Dispose();
+        }
 
         _logger.LogInformation("LightMQ服务停止");
     }
-
 }
