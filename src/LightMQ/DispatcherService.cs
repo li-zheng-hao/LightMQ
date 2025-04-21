@@ -9,14 +9,13 @@ using Microsoft.Extensions.Options;
 
 namespace LightMQ;
 
-public class DispatcherService : IHostedService
+public class DispatcherService : Microsoft.Extensions.Hosting.BackgroundService
 {
     private readonly ILogger<DispatcherService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IStorageProvider _storageProvider;
     private readonly IOptions<LightMQOptions> _options;
     private readonly IConsumerProvider _consumerProvider;
-    private CancellationTokenSource _cancel;
 
     protected List<IPollMessageTask> _tasks;
     private IEnumerable<IBackgroundService> _backgroundServices;
@@ -39,39 +38,41 @@ public class DispatcherService : IHostedService
         _backgroundServices = backgroundServices;
     }
 
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    public Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        return Run(cancellationToken);
-    }
-
-    private async Task Run(CancellationToken cancellationToken)
-    {
-        _cancel = new CancellationTokenSource();
         try
         {
+            await Task.Yield();
+            
             _logger.LogInformation("LightMQ服务启动");
 
-            await _storageProvider.InitTables(cancellationToken);
-
-            _consumerProvider.ScanConsumers();
-
+            await _storageProvider.InitTables(stoppingToken);
+            
+            await Task.Run(()=>_consumerProvider.ScanConsumers(),stoppingToken);
+            
             if (_consumerProvider.GetConsumerInfos().Count == 0)
             {
                 _logger.LogInformation("没有扫描到消费者");
             }
 
-            StartPollMessageTasks(_cancel.Token);
+            StartPollMessageTasks(stoppingToken);
 
-            StartBackgroundServices(_cancel.Token);
+            StartBackgroundServices(stoppingToken);
+
+            while (true)
+            {
+                stoppingToken.ThrowIfCancellationRequested();
+                await Task.Delay(500, stoppingToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            await Cancel();
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "LightMQ扫描消费者出现异常");
+            _logger.LogError(e, "LightMQ消费消息出现异常");
+            throw;
         }
     }
 
@@ -106,10 +107,8 @@ public class DispatcherService : IHostedService
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    private async Task Cancel()
     {
-        _cancel.Cancel();
-
         try
         {
             using var tokenSource = new CancellationTokenSource();
@@ -136,9 +135,8 @@ public class DispatcherService : IHostedService
         }
         finally
         {
-            _cancel.Dispose();
+            _logger.LogInformation("LightMQ服务停止");
         }
 
-        _logger.LogInformation("LightMQ服务停止");
     }
 }

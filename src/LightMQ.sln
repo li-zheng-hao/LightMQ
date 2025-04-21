@@ -24,6 +24,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{E018A9B3-995
 	ProjectSection(SolutionItems) = preProject
 		..\README.md = ..\README.md
 		..\README_CN.md = ..\README_CN.md
+		Directory.Build.props = Directory.Build.props
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightMQ.Storage.Sqlite", "LightMQ.Storage.Sqlite\LightMQ.Storage.Sqlite.csproj", "{FD107F47-D309-4F0E-BB4E-85BF4E502770}"
