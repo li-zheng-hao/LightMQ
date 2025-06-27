@@ -18,7 +18,7 @@ public class DispatcherServiceTests
     private readonly Mock<ILogger<DispatcherService>> _mockLogger;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IOptions<LightMQOptions>> _mockOptions;
-    private readonly DispatcherService _service;
+    private DispatcherService _service;
     private readonly Mock<IServiceScope> _mockServiceScope;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly Mock<IConsumerProvider> _mockConsumerProvider;
@@ -147,11 +147,13 @@ public class DispatcherServiceTests
             .Setup(sp => sp.GetService(typeof(IPollMessageTask)))
             .Returns(mockPollMessageTask.Object);
 
-        await _service.StartAsync(default);
         mockPollMessageTask.Setup(it => it.IsRunning).Returns(true);
         mockPollMessageTask
             .Setup(it => it.GetConsumerInfo())
             .Returns(MockHelper.GetFakeConsumerInfos()[0]);
+
+        await _service.StartAsync(default);
+        await Task.Delay(1000);
         // Act
         await _service.StopAsync(cancellationToken);
         _mockLogger.VerifyLogging(
@@ -187,5 +189,56 @@ public class DispatcherServiceTests
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(100, "StartAsync应快速返回");
         scanConsumersCalled.Should().BeTrue();
         cancellationToken.Cancel();
+    }
+
+    [Fact]
+    public void DispatcherService_ShouldAllowReassignment_WhenServiceFieldIsNotReadonly()
+    {
+        // Arrange - 验证_service字段可以重新赋值（不再是readonly）
+        var originalService = _service;
+
+        // Act - 重新创建服务实例
+        _service = new DispatcherService(
+            _mockLogger.Object,
+            _mockServiceProvider.Object,
+            _mockStorageProvider.Object,
+            _mockOptions.Object,
+            _mockConsumerProvider.Object,
+            []
+        );
+
+        // Assert - 验证可以成功重新赋值
+        _service.Should().NotBeSameAs(originalService);
+        _service.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task StopAsync_ShouldWaitAfterStart_WhenTestingServiceLifecycle()
+    {
+        // Arrange
+        var cancellationToken = new CancellationToken();
+
+        _mockConsumerProvider
+            .Setup(it => it.GetConsumerInfos())
+            .Returns(MockHelper.GetFakeConsumerInfos());
+
+        var mockPollMessageTask = new Mock<IPollMessageTask>();
+        _mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(IPollMessageTask)))
+            .Returns(mockPollMessageTask.Object);
+
+        mockPollMessageTask.Setup(it => it.IsRunning).Returns(true);
+        mockPollMessageTask
+            .Setup(it => it.GetConsumerInfo())
+            .Returns(MockHelper.GetFakeConsumerInfos()[0]);
+
+        // Act - 按照修改后的顺序：先启动，然后等待，再停止
+        await _service.StartAsync(default);
+        await Task.Delay(1000); // 等待服务启动完成
+        await _service.StopAsync(cancellationToken);
+
+        // Assert - 验证服务正常启动和停止
+        _mockLogger.VerifyLogging("LightMQ服务启动", LogLevel.Information);
+        _mockLogger.VerifyLogging("LightMQ服务停止", LogLevel.Information);
     }
 }

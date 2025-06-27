@@ -82,7 +82,7 @@ internal class PollMessageTask:IPollMessageTask
 
                     if (result)
                     {
-                        await _storageProvider.AckMessageAsync(currentMessage, stoppingToken);
+                        await _storageProvider.AckMessageAsync(currentMessage);
                     }
                     else
                     {
@@ -90,10 +90,10 @@ internal class PollMessageTask:IPollMessageTask
                         {
                             currentMessage.RetryCount += 1;
                             currentMessage.ExecutableTime = DateTime.Now.Add(_consumerInfo.ConsumerOptions.RetryInterval);
-                            await _storageProvider.UpdateRetryInfoAsync(currentMessage, stoppingToken);
+                            await _storageProvider.UpdateRetryInfoAsync(currentMessage);
                         }
                         else
-                            await _storageProvider.NackMessageAsync(currentMessage, stoppingToken);
+                            await _storageProvider.NackMessageAsync(currentMessage);
                     }
                 }
                 catch (Exception e)
@@ -106,10 +106,10 @@ internal class PollMessageTask:IPollMessageTask
                     {
                         currentMessage.RetryCount += 1;
                         currentMessage.ExecutableTime = DateTime.Now.Add(_consumerInfo.ConsumerOptions.RetryInterval);
-                        await _storageProvider.UpdateRetryInfoAsync(currentMessage, stoppingToken);
+                        await _storageProvider.UpdateRetryInfoAsync(currentMessage);
                     }
                     else
-                        await _storageProvider.NackMessageAsync(currentMessage, stoppingToken);
+                        await _storageProvider.NackMessageAsync(currentMessage);
                 }
                 finally
                 {

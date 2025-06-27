@@ -3,13 +3,14 @@ using LightMQ.Options;
 
 namespace LightMQ.UnitTest.InternalHelpers;
 
-public class FakeConsumer:IMessageConsumer
+public class FakeConsumer : IMessageConsumer
 {
-    public bool ReturnResult { get; set; }= true;
+    public bool ReturnResult { get; set; } = true;
 
     public int Seconds { get; set; } = 0;
-    
+
     public bool ThrowException { get; set; } = false;
+
     public ConsumerOptions GetOptions()
     {
         return MockHelper.GetFakeConsumerOptions();
@@ -23,7 +24,7 @@ public class FakeConsumer:IMessageConsumer
         }
         if (Seconds > 0)
         {
-            await Task.Delay(Seconds * 1000,cancellationToken);
+            await Task.Delay(Seconds * 1000, cancellationToken);
         }
 
         return ReturnResult;
