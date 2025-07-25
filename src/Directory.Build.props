@@ -3,6 +3,6 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn),8618,CS8618,CS1591,NU1903,NU1902,CS1572,CS1573</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>3.0.2</Version>
+    <Version>4.0.0-preview1</Version>
   </PropertyGroup>
 </Project>

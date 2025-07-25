@@ -31,6 +31,11 @@ public class Message
     public DateTime CreateTime { get; set; }
     
     /// <summary>
+    /// 更新时间
+    /// </summary>
+    public DateTime UpdateTime { get; set; }
+
+    /// <summary>
     /// 可执行时间
     /// </summary>
     public DateTime ExecutableTime { get; set; }

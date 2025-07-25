@@ -93,7 +93,8 @@ public class MessagePublisherTests
         await _messagePublisher.PublishAsync(topic, messages);
 
         // Assert
-        _mockStorageProvider.Verify(sp => sp.PublishNewMessagesAsync(It.IsAny<List<Message>>()), Times.Once);
+        _mockStorageProvider.Verify(sp => sp.PublishNewMessagesAsync(It.Is<List<Message>>(list => list.Count == messages.Count && list.All(m => m.Topic == topic))),
+            Times.Once);
     }
 
     [Fact]
@@ -108,12 +109,12 @@ public class MessagePublisherTests
         await _messagePublisher.PublishAsync(topic, messages, transaction);
 
         // Assert
-        _mockStorageProvider.Verify(sp => sp.PublishNewMessagesAsync(It.IsAny<List<Message>>(), transaction),
+        _mockStorageProvider.Verify(sp => sp.PublishNewMessagesAsync(It.Is<List<Message>>(list => list.Count == messages.Count && list.All(m => m.Topic == topic)), transaction),
             Times.Once);
     }
 
     [Fact]
-    public async Task PublishAsync_ShouldSerializeMessageToJson()
+    public async Task PublishAsync_ShouldSetUpdateTime()
     {
         // Arrange
         var topic = "test-topic";

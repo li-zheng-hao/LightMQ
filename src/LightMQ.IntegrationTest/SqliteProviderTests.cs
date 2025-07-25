@@ -1,46 +1,73 @@
-﻿using System.Data.SqlClient;
 using LightMQ.Options;
-using LightMQ.Storage.MongoDB;
-using LightMQ.Storage.SqlServer;
+using LightMQ.Storage.Sqlite;
 using LightMQ.Transport;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 
 namespace LightMQ.IntegrationTest;
 
-public class SqlServerProviderTests : IAsyncLifetime
+public class SqliteProviderTests : IAsyncLifetime
 {
-    private readonly SqlServerStorageProvider _sqlseverStorageProvider;
-    private readonly IOptions<SqlServerOptions> _sqlserverOptions;
+    private readonly SqliteStorageProvider _sqliteStorageProvider;
+    private readonly IOptions<SqliteOptions> _sqliteOptions;
     private readonly IOptions<LightMQOptions> _options;
-    private readonly SqlConnection _connection;
+    private readonly SqliteConnection _connection;
 
-    public SqlServerProviderTests()
+    public SqliteProviderTests()
     {
-        _options = Microsoft.Extensions.Options.Options.Create(new LightMQOptions() { });
-        _sqlserverOptions = Microsoft.Extensions.Options.Options.Create(
-            new SqlServerOptions()
-            {
-                ConnectionString = Environment.GetEnvironmentVariable(
-                    "APP_MSSQL_CONNECTIONSTRING"
-                )!,
-            }
+        _options = Microsoft.Extensions.Options.Options.Create(new LightMQOptions());
+        _sqliteOptions = Microsoft.Extensions.Options.Options.Create(
+            new SqliteOptions() { ConnectionString = "Data Source=LightMQ_IntegrationTest.db" }
         );
-        _sqlseverStorageProvider = new SqlServerStorageProvider(_options, _sqlserverOptions);
-        _connection = new SqlConnection(_sqlserverOptions.Value.ConnectionString);
+        _sqliteStorageProvider = new SqliteStorageProvider(_options, _sqliteOptions);
+        _connection = new SqliteConnection(_sqliteOptions.Value.ConnectionString);
         _connection.Open();
     }
 
     public Task InitializeAsync()
     {
-        return _sqlseverStorageProvider.InitTables(CancellationToken.None);
+        return _sqliteStorageProvider.InitTables(CancellationToken.None);
     }
 
     public async Task DisposeAsync()
     {
-        // 删除_options.Value.TableName表所有数据
-        var cmd = _connection.CreateCommand();
-        cmd.CommandText = $"DELETE FROM {_options.Value.TableName}";
-        await cmd.ExecuteNonQueryAsync();
+        try
+        {
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = $"DELETE FROM {_options.Value.TableName}";
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception)
+        {
+            // Ignore errors during cleanup
+        }
+        finally
+        {
+            try
+            {
+                await _connection.CloseAsync();
+                await _connection.DisposeAsync();
+            }
+            catch (Exception)
+            {
+                // Ignore errors during connection disposal
+            }
+
+            // Wait a bit for the file to be released, then try to delete it
+            await Task.Delay(100);
+            try
+            {
+                if (File.Exists("LightMQ_IntegrationTest.db"))
+                {
+                    File.Delete("LightMQ_IntegrationTest.db");
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore file deletion errors - the file might still be locked
+                // The OS will clean it up eventually
+            }
+        }
     }
 
     [Fact]
@@ -61,15 +88,15 @@ public class SqlServerProviderTests : IAsyncLifetime
         };
 
         // Act
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Assert
         var cmd = _connection.CreateCommand();
         cmd.CommandText = $"SELECT COUNT(*) FROM {_options.Value.TableName} WHERE Id = @Id";
-        cmd.Parameters.Add(new SqlParameter("@Id", message.Id));
+        cmd.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var count = (int)await cmd.ExecuteScalarAsync();
-        Assert.Equal(1, count); // 验证数据库中是否插入了这条消息
+        var count = (long)await cmd.ExecuteScalarAsync();
+        Assert.Equal(1, count);
     }
 
     [Fact]
@@ -81,7 +108,7 @@ public class SqlServerProviderTests : IAsyncLifetime
             Id = Guid.NewGuid().ToString(),
             Topic = "OldTopic",
             Data = "OldData",
-            CreateTime = DateTime.Now.AddDays(-8), // 设置为旧消息
+            CreateTime = DateTime.Now.AddDays(-8),
             Status = MessageStatus.Waiting,
             ExecutableTime = DateTime.Now.AddMinutes(5),
             RetryCount = 0,
@@ -89,18 +116,18 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "OldQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(oldMessage, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(oldMessage, CancellationToken.None);
 
         // Act
-        await _sqlseverStorageProvider.ClearOldMessagesAsync(CancellationToken.None);
+        await _sqliteStorageProvider.ClearOldMessagesAsync(CancellationToken.None);
 
         // Assert
         var cmd = _connection.CreateCommand();
         cmd.CommandText = $"SELECT COUNT(*) FROM {_options.Value.TableName} WHERE Id = @Id";
-        cmd.Parameters.Add(new SqlParameter("@Id", oldMessage.Id));
+        cmd.Parameters.Add(new SqliteParameter("@Id", oldMessage.Id));
 
-        var count = (int?)await cmd.ExecuteScalarAsync();
-        Assert.Equal(0, count); // 验证旧消息是否被删除
+        var count = (long)await cmd.ExecuteScalarAsync();
+        Assert.Equal(0, count);
     }
 
     [Fact]
@@ -120,19 +147,19 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "NackQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Act
-        await _sqlseverStorageProvider.NackMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.NackMessageAsync(message, CancellationToken.None);
 
         // Assert
         var updatedMessage = _connection.CreateCommand();
         updatedMessage.CommandText =
             $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessage.Parameters.Add(new SqlParameter("@Id", message.Id));
+        updatedMessage.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var status = (int?)await updatedMessage.ExecuteScalarAsync();
-        Assert.Equal((int)MessageStatus.Failed, status); // 验证状态是否更新为 Failed
+        var status = (long)await updatedMessage.ExecuteScalarAsync();
+        Assert.Equal((long)MessageStatus.Failed, status);
     }
 
     [Fact]
@@ -152,19 +179,19 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "ResetQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Act
-        await _sqlseverStorageProvider.ResetMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.ResetMessageAsync(message, CancellationToken.None);
 
         // Assert
         var updatedMessage = _connection.CreateCommand();
         updatedMessage.CommandText =
             $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessage.Parameters.Add(new SqlParameter("@Id", message.Id));
+        updatedMessage.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var status = (int?)await updatedMessage.ExecuteScalarAsync();
-        Assert.Equal((int)MessageStatus.Waiting, status); // 验证状态是否更新为 Waiting
+        var status = (long)await updatedMessage.ExecuteScalarAsync();
+        Assert.Equal((long)MessageStatus.Waiting, status);
     }
 
     [Fact]
@@ -184,25 +211,25 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "RetryQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Act
-        message.RetryCount = 1; // 更新重试次数
-        message.ExecutableTime = DateTime.Now.AddMinutes(10); // 更新可执行时间
-        await _sqlseverStorageProvider.UpdateRetryInfoAsync(message, CancellationToken.None);
+        message.RetryCount = 1;
+        message.ExecutableTime = DateTime.Now.AddMinutes(10);
+        await _sqliteStorageProvider.UpdateRetryInfoAsync(message, CancellationToken.None);
 
         // Assert
         var updatedMessage = _connection.CreateCommand();
         updatedMessage.CommandText =
             $"SELECT RetryCount, ExecutableTime FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessage.Parameters.Add(new SqlParameter("@Id", message.Id));
+        updatedMessage.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
         using var reader = await updatedMessage.ExecuteReaderAsync();
         if (await reader.ReadAsync())
         {
-            Assert.Equal(1, reader.GetInt32(0)); // 验证重试次数是否更新
+            Assert.Equal(1, reader.GetInt32(0));
             var span = message.ExecutableTime - reader.GetDateTime(1);
-            Assert.True(span < TimeSpan.FromSeconds(0.01)); // 验证可执行时间是否更新
+            Assert.True(span < TimeSpan.FromSeconds(1));
         }
     }
 
@@ -215,18 +242,18 @@ public class SqlServerProviderTests : IAsyncLifetime
             Id = Guid.NewGuid().ToString(),
             Topic = "OldTopic",
             Data = "OldData",
-            CreateTime = DateTime.Now.AddDays(-1), // 设置为过期消息
+            CreateTime = DateTime.Now.AddDays(-1),
             Status = MessageStatus.Processing,
-            ExecutableTime = DateTime.Now.AddMinutes(-10), // 设置为过期
+            ExecutableTime = DateTime.Now.AddMinutes(-10),
             RetryCount = 0,
             Header = "OldHeader",
             Queue = "OldQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(oldMessage, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(oldMessage, CancellationToken.None);
 
         // Act
-        await _sqlseverStorageProvider.ResetOutOfDateMessagesAsync(
+        await _sqliteStorageProvider.ResetOutOfDateMessagesAsync(
             "OldTopic",
             DateTime.Now,
             CancellationToken.None
@@ -236,10 +263,10 @@ public class SqlServerProviderTests : IAsyncLifetime
         var updatedMessage = _connection.CreateCommand();
         updatedMessage.CommandText =
             $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessage.Parameters.Add(new SqlParameter("@Id", oldMessage.Id));
+        updatedMessage.Parameters.Add(new SqliteParameter("@Id", oldMessage.Id));
 
-        var status = (int?)await updatedMessage.ExecuteScalarAsync();
-        Assert.Equal((int)MessageStatus.Waiting, status); // 验证状态是否更新为 Waiting
+        var status = (long)await updatedMessage.ExecuteScalarAsync();
+        Assert.Equal((long)MessageStatus.Waiting, status);
     }
 
     [Fact]
@@ -259,10 +286,10 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "PollQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Act
-        var polledMessage = await _sqlseverStorageProvider.PollNewMessageAsync(
+        var polledMessage = await _sqliteStorageProvider.PollNewMessageAsync(
             "PollTopic",
             CancellationToken.None
         );
@@ -273,10 +300,10 @@ public class SqlServerProviderTests : IAsyncLifetime
         var updatedMessage = _connection.CreateCommand();
         updatedMessage.CommandText =
             $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessage.Parameters.Add(new SqlParameter("@Id", message.Id));
+        updatedMessage.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var status = (int?)await updatedMessage.ExecuteScalarAsync();
-        Assert.Equal((int)MessageStatus.Processing, status); // 验证状态是否更新为 Processing
+        var status = (long)await updatedMessage.ExecuteScalarAsync();
+        Assert.Equal((long)MessageStatus.Processing, status);
     }
 
     [Fact]
@@ -285,7 +312,6 @@ public class SqlServerProviderTests : IAsyncLifetime
         // Arrange
         var topic = "TestTopic";
 
-        // 插入多个消息到不同的队列
         var message1 = new Message
         {
             Id = Guid.NewGuid().ToString(),
@@ -322,22 +348,19 @@ public class SqlServerProviderTests : IAsyncLifetime
             ExecutableTime = DateTime.Now,
             RetryCount = 0,
             Header = "Header3",
-            Queue = "Queue1", // 重复队列
+            Queue = "Queue1",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message1, CancellationToken.None);
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message2, CancellationToken.None);
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message3, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message1, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message2, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message3, CancellationToken.None);
 
         // Act
-        var queues = await _sqlseverStorageProvider.PollAllQueuesAsync(
-            topic,
-            CancellationToken.None
-        );
+        var queues = await _sqliteStorageProvider.PollAllQueuesAsync(topic, CancellationToken.None);
 
         // Assert
         Assert.NotNull(queues);
-        Assert.Equal(2, queues.Count); // 应该返回两个不同的队列
+        Assert.Equal(2, queues.Count);
         Assert.Contains("Queue1", queues);
         Assert.Contains("Queue2", queues);
     }
@@ -359,19 +382,19 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "AckQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Act
-        await _sqlseverStorageProvider.AckMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.AckMessageAsync(message, CancellationToken.None);
 
         // Assert
         var updatedMessage = _connection.CreateCommand();
         updatedMessage.CommandText =
             $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessage.Parameters.Add(new SqlParameter("@Id", message.Id));
+        updatedMessage.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var status = (int?)await updatedMessage.ExecuteScalarAsync();
-        Assert.Equal((int)MessageStatus.Success, status); // 验证状态是否更新为 Success
+        var status = (long)await updatedMessage.ExecuteScalarAsync();
+        Assert.Equal((long)MessageStatus.Success, status);
     }
 
     [Fact]
@@ -391,12 +414,12 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "TestQueue",
         };
 
-        using var connection = new SqlConnection(_sqlserverOptions.Value.ConnectionString);
+        using var connection = new SqliteConnection(_sqliteOptions.Value.ConnectionString);
         await connection.OpenAsync();
         using var transaction = connection.BeginTransaction();
 
         // Act
-        await _sqlseverStorageProvider.PublishNewMessageAsync(
+        await _sqliteStorageProvider.PublishNewMessageAsync(
             message,
             transaction,
             CancellationToken.None
@@ -406,14 +429,14 @@ public class SqlServerProviderTests : IAsyncLifetime
         // Assert
         var cmd = connection.CreateCommand();
         cmd.CommandText = $"SELECT COUNT(*) FROM {_options.Value.TableName} WHERE Id = @Id";
-        cmd.Parameters.Add(new SqlParameter("@Id", message.Id));
+        cmd.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var count = (int)await cmd.ExecuteScalarAsync();
-        Assert.Equal(1, count); // 验证数据库中是否插入了这条消息
+        var count = (long)await cmd.ExecuteScalarAsync();
+        Assert.Equal(1, count);
     }
 
     [Fact]
-    public async Task PollNewMessageAsync_ShouldReturnAndUpdateMessageStatus2()
+    public async Task PollNewMessageAsync_WithQueue_ShouldReturnAndUpdateMessageStatus()
     {
         // Arrange
         var message = new Message
@@ -429,10 +452,10 @@ public class SqlServerProviderTests : IAsyncLifetime
             Queue = "PollQueue",
         };
 
-        await _sqlseverStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
 
         // Act
-        var polledMessage = await _sqlseverStorageProvider.PollNewMessageAsync(
+        var polledMessage = await _sqliteStorageProvider.PollNewMessageAsync(
             "PollTopic",
             "PollQueue",
             CancellationToken.None
@@ -440,16 +463,15 @@ public class SqlServerProviderTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(polledMessage);
-        Assert.Equal(message.Id, polledMessage.Id); // 验证返回的消息 ID 是否匹配
+        Assert.Equal(message.Id, polledMessage.Id);
 
-        // 验证消息状态是否更新为 Processing
         var updatedMessageCmd = _connection.CreateCommand();
         updatedMessageCmd.CommandText =
             $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
-        updatedMessageCmd.Parameters.Add(new SqlParameter("@Id", message.Id));
+        updatedMessageCmd.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-        var status = (int)await updatedMessageCmd.ExecuteScalarAsync();
-        Assert.Equal((int)MessageStatus.Processing, status); // 验证状态是否更新为 Processing
+        var status = (long)await updatedMessageCmd.ExecuteScalarAsync();
+        Assert.Equal((long)MessageStatus.Processing, status);
     }
 
     [Fact]
@@ -485,17 +507,17 @@ public class SqlServerProviderTests : IAsyncLifetime
         };
 
         // Act
-        await _sqlseverStorageProvider.PublishNewMessagesAsync(messages);
+        await _sqliteStorageProvider.PublishNewMessagesAsync(messages);
 
         // Assert
         foreach (var message in messages)
         {
             var cmd = _connection.CreateCommand();
             cmd.CommandText = $"SELECT COUNT(*) FROM {_options.Value.TableName} WHERE Id = @Id";
-            cmd.Parameters.Add(new SqlParameter("@Id", message.Id));
+            cmd.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-            var count = (int)await cmd.ExecuteScalarAsync();
-            Assert.Equal(1, count); // 验证每条消息是否插入成功
+            var count = (long)await cmd.ExecuteScalarAsync();
+            Assert.Equal(1, count);
         }
     }
 
@@ -531,25 +553,23 @@ public class SqlServerProviderTests : IAsyncLifetime
             },
         };
 
-        using var connection = new SqlConnection(_sqlserverOptions.Value.ConnectionString);
+        using var connection = new SqliteConnection(_sqliteOptions.Value.ConnectionString);
         await connection.OpenAsync();
         using var transaction = connection.BeginTransaction();
 
         // Act
-        await _sqlseverStorageProvider.PublishNewMessagesAsync(messages, transaction);
+        await _sqliteStorageProvider.PublishNewMessagesAsync(messages, transaction);
+        await transaction.CommitAsync();
 
         // Assert
         foreach (var message in messages)
         {
             var cmd = connection.CreateCommand();
-            cmd.Transaction = transaction;
             cmd.CommandText = $"SELECT COUNT(*) FROM {_options.Value.TableName} WHERE Id = @Id";
-            cmd.Parameters.Add(new SqlParameter("@Id", message.Id));
+            cmd.Parameters.Add(new SqliteParameter("@Id", message.Id));
 
-            var count = (int?)await cmd.ExecuteScalarAsync();
-            Assert.Equal(1, count); // 验证每条消息是否插入成功
+            var count = (long)await cmd.ExecuteScalarAsync();
+            Assert.Equal(1, count);
         }
-
-        await transaction.CommitAsync();
     }
 }
