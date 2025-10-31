@@ -262,18 +262,18 @@ GROUP BY Queue;";
     public async Task InitTables(CancellationToken stoppingToken = default)
     {
         var sql = $"""
-            CREATE TABLE IF NOT EXISTS {_mqOptions.Value.TableName} (
-                Id TEXT PRIMARY KEY,
-                Topic TEXT NOT NULL,
-                Data TEXT NOT NULL,
-                CreateTime DATETIME NOT NULL,
-                Status INTEGER NOT NULL,
-                ExecutableTime DATETIME NOT NULL,
-                RetryCount INTEGER NOT NULL,
-                Header TEXT,
-                Queue TEXT
-            )
-            """;
+                   CREATE TABLE IF NOT EXISTS {_mqOptions.Value.TableName} (
+                       Id TEXT PRIMARY KEY,
+                       Topic TEXT NOT NULL,
+                       Data TEXT NOT NULL,
+                       CreateTime DATETIME NOT NULL,
+                       Status INTEGER NOT NULL,
+                       ExecutableTime DATETIME NOT NULL,
+                       RetryCount INTEGER NOT NULL,
+                       Header TEXT,
+                       Queue TEXT
+                   )
+                   """;
         var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
         await connection.ExecuteAsync(sql);
@@ -300,5 +300,25 @@ GROUP BY Queue;";
         var dbTransaction = transaction as SqliteTransaction;
         var connection = dbTransaction!.Connection;
         return connection!.ExecuteAsync(sql, messages, dbTransaction);
+    }
+
+    public async Task RequeueMessageAsync(Message currentMessage)
+    {
+        // 将一条消息的状态从Waiting改为Processing，并返回这条消息
+        var sql =
+            @$"
+    UPDATE {_mqOptions.Value.TableName} 
+    SET Status = @Status,ExecutableTime=@ExecutableTime
+    WHERE Id= @Id";
+        var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteAsync(
+            sql,
+            new
+            {
+                Status = MessageStatus.Processing,
+                ExecutableTime = DateTime.Now,
+            }
+        );
     }
 }

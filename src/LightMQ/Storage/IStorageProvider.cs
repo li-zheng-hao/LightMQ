@@ -113,4 +113,10 @@ public interface IStorageProvider
 
     Task PublishNewMessagesAsync(List<Message> messages);
     Task PublishNewMessagesAsync(List<Message> messages, object transaction);
+    /// <summary>
+    /// 重新入队消息
+    /// </summary>
+    /// <param name="currentMessage"></param>
+    /// <returns></returns>
+    Task RequeueMessageAsync(Message currentMessage);
 }

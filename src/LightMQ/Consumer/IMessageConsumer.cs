@@ -6,6 +6,6 @@ public interface IMessageConsumer
 {
     ConsumerOptions GetOptions();
 
-    Task<bool> ConsumeAsync(string message, CancellationToken cancellationToken);
+    Task<ConsumeResult> ConsumeAsync(string message, CancellationToken cancellationToken);
 
 }

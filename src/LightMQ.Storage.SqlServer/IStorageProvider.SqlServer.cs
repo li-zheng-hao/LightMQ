@@ -367,4 +367,24 @@ GROUP BY Queue;";
         var connection = dbTransaction.Connection;
         return connection.ExecuteAsync(sql, messages, dbTransaction);
     }
+
+    public async Task RequeueMessageAsync(Message currentMessage)
+    {
+        // 将一条消息的状态从Waiting改为Processing，并返回这条消息
+        var sql =
+            @$"
+    UPDATE {_mqOptions.Value.TableName} 
+    SET Status = @Status,ExecutableTime=@ExecutableTime
+    WHERE Id= @Id";
+        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        await connection.ExecuteAsync(
+            sql,
+            new
+            {
+                Status = MessageStatus.Processing,
+                ExecutableTime = DateTime.Now,
+            }
+        );
+    }
 }

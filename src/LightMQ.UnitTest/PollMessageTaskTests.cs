@@ -212,7 +212,7 @@ public class PollMessageTaskTests
 
         _mockConsumer
             .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(ConsumeResult.SuccessResult);
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(500); // 设置取消时间
@@ -298,7 +298,7 @@ public class PollMessageTaskTests
 
         _mockConsumer
             .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(ConsumeResult.SuccessResult);
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(500); // 设置取消时间
@@ -387,7 +387,7 @@ public class PollMessageTaskTests
 
         _mockConsumer
             .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(ConsumeResult.SuccessResult);
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(500); // 设置取消时间
@@ -447,7 +447,7 @@ public class PollMessageTaskTests
 
         _mockConsumer
             .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(ConsumeResult.SuccessResult);
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(100); // 设置取消时间
@@ -499,7 +499,7 @@ public class PollMessageTaskTests
         ;
         _mockConsumer
             .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(ConsumeResult.SuccessResult);
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(100); // 设置取消时间
@@ -857,6 +857,249 @@ public class PollMessageTaskTests
         _mockStorageProvider.Verify(
             sp => sp.UpdateRetryInfoAsync(message, It.Is<CancellationToken>(ct => ct == default)),
             Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldCallRequeueMessageAsync_WhenConsumerReturnsRequeueResult()
+    {
+        // Arrange
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                PollInterval = TimeSpan.FromSeconds(0.1),
+                RetryCount = 3,
+                RetryInterval = TimeSpan.FromSeconds(1),
+            },
+            ConsumerType = typeof(FakeConsumer),
+        };
+
+        var message = new Message
+        {
+            Id = "1",
+            Topic = "test-topic",
+            Data = "test data",
+            Status = MessageStatus.Waiting,
+            RetryCount = 0,
+        };
+
+        _mockStorageProvider
+            .SetupSequence(sp =>
+                sp.PollNewMessageAsync(
+                    consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(message)
+            .ReturnsAsync((Message?)null);
+
+        _mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(FakeConsumer)))
+            .Returns(new FakeConsumer() { ReturnResult = true, ReturnRequeue = true });
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.CancelAfter(100);
+
+        // Act
+        await _pollMessageTask.RunAsync(consumerInfo, cancellationTokenSource.Token);
+
+        // Assert - 验证RequeueMessageAsync被调用
+        _mockStorageProvider.Verify(
+            sp => sp.RequeueMessageAsync(message),
+            Times.Once
+        );
+        // 验证不会调用AckMessageAsync
+        _mockStorageProvider.Verify(
+            sp => sp.AckMessageAsync(message, It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldCallRequeueMessageAsyncWithoutCancellationToken_WhenConsumerReturnsRequeueResult()
+    {
+        // Arrange
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                PollInterval = TimeSpan.FromSeconds(0.1),
+                RetryCount = 3,
+                RetryInterval = TimeSpan.FromSeconds(1),
+            },
+            ConsumerType = typeof(FakeConsumer),
+        };
+
+        var message = new Message
+        {
+            Id = "1",
+            Topic = "test-topic",
+            Data = "test data",
+            Status = MessageStatus.Waiting,
+            RetryCount = 0,
+        };
+
+        _mockStorageProvider
+            .SetupSequence(sp =>
+                sp.PollNewMessageAsync(
+                    consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(message)
+            .ReturnsAsync((Message?)null);
+
+        _mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(FakeConsumer)))
+            .Returns(new FakeConsumer() { ReturnResult = true, ReturnRequeue = true });
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.CancelAfter(100);
+
+        // Act
+        await _pollMessageTask.RunAsync(consumerInfo, cancellationTokenSource.Token);
+
+        // Assert - 验证RequeueMessageAsync被调用，且不需要CancellationToken参数（根据接口定义）
+        _mockStorageProvider.Verify(
+            sp => sp.RequeueMessageAsync(message),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldCallUpdateRetryInfoAsync_WhenConsumerReturnsFailResultAndRetryAvailable()
+    {
+        // Arrange
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                PollInterval = TimeSpan.FromSeconds(0.1),
+                RetryCount = 3,
+                RetryInterval = TimeSpan.FromSeconds(1),
+            },
+            ConsumerType = typeof(FakeConsumer),
+        };
+
+        var message = new Message
+        {
+            Id = "1",
+            Topic = "test-topic",
+            Data = "test data",
+            Status = MessageStatus.Waiting,
+            RetryCount = 0,
+        };
+
+        _mockStorageProvider
+            .SetupSequence(sp =>
+                sp.PollNewMessageAsync(
+                    consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(message)
+            .ReturnsAsync((Message?)null);
+
+        _mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(FakeConsumer)))
+            .Returns(new FakeConsumer() { ReturnResult = false });
+
+        _mockConsumer
+            .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConsumeResult.FailResult());
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.CancelAfter(100);
+
+        // Act
+        await _pollMessageTask.RunAsync(consumerInfo, cancellationTokenSource.Token);
+
+        // Assert - 验证UpdateRetryInfoAsync被调用（因为IsSuccess=false且还有重试次数）
+        _mockStorageProvider.Verify(
+            sp => sp.UpdateRetryInfoAsync(message, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+        // 验证不会调用AckMessageAsync和RequeueMessageAsync
+        _mockStorageProvider.Verify(
+            sp => sp.AckMessageAsync(message, It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+        _mockStorageProvider.Verify(
+            sp => sp.RequeueMessageAsync(message),
+            Times.Never
+        );
+    }
+
+    [Fact]
+    public async Task RunAsync_ShouldCallNackMessageAsync_WhenConsumerReturnsFailResultAndRetryLimitExceeded()
+    {
+        // Arrange
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                PollInterval = TimeSpan.FromSeconds(0.1),
+                RetryCount = 2,
+                RetryInterval = TimeSpan.FromSeconds(1),
+            },
+            ConsumerType = typeof(FakeConsumer),
+        };
+
+        var message = new Message
+        {
+            Id = "1",
+            Topic = "test-topic",
+            Data = "test data",
+            Status = MessageStatus.Waiting,
+            RetryCount = 2, // 已达到重试上限
+        };
+
+        _mockStorageProvider
+            .SetupSequence(sp =>
+                sp.PollNewMessageAsync(
+                    consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(message)
+            .ReturnsAsync((Message?)null);
+
+        _mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(FakeConsumer)))
+            .Returns(new FakeConsumer() { ReturnResult = false });
+
+        _mockConsumer
+            .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConsumeResult.FailResult());
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.CancelAfter(100);
+
+        // Act
+        await _pollMessageTask.RunAsync(consumerInfo, cancellationTokenSource.Token);
+
+        // Assert - 验证NackMessageAsync被调用（因为IsSuccess=false且已达到重试上限）
+        _mockStorageProvider.Verify(
+            sp => sp.NackMessageAsync(message, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+        // 验证不会调用UpdateRetryInfoAsync、AckMessageAsync和RequeueMessageAsync
+        _mockStorageProvider.Verify(
+            sp => sp.UpdateRetryInfoAsync(message, It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+        _mockStorageProvider.Verify(
+            sp => sp.AckMessageAsync(message, It.IsAny<CancellationToken>()),
+            Times.Never
+        );
+        _mockStorageProvider.Verify(
+            sp => sp.RequeueMessageAsync(message),
+            Times.Never
         );
     }
 }

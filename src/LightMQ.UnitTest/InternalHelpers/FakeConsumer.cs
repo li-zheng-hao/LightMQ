@@ -7,6 +7,8 @@ public class FakeConsumer : IMessageConsumer
 {
     public bool ReturnResult { get; set; } = true;
 
+    public bool ReturnRequeue { get; set; } = false;
+
     public int Seconds { get; set; } = 0;
 
     public bool ThrowException { get; set; } = false;
@@ -16,7 +18,7 @@ public class FakeConsumer : IMessageConsumer
         return MockHelper.GetFakeConsumerOptions();
     }
 
-    public async Task<bool> ConsumeAsync(string message, CancellationToken cancellationToken)
+    public async Task<ConsumeResult> ConsumeAsync(string message, CancellationToken cancellationToken)
     {
         if (ThrowException)
         {
@@ -27,6 +29,6 @@ public class FakeConsumer : IMessageConsumer
             await Task.Delay(Seconds * 1000, cancellationToken);
         }
 
-        return ReturnResult;
+        return new ConsumeResult(){IsSuccess = ReturnResult, Requeue = ReturnRequeue};
     }
 }

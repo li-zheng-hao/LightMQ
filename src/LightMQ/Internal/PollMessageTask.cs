@@ -80,7 +80,11 @@ internal class PollMessageTask:IPollMessageTask
 
                     var result = await consumer!.ConsumeAsync(currentMessage.Data, stoppingToken);
 
-                    if (result)
+                    if (result.Requeue)
+                    {
+                        await _storageProvider.RequeueMessageAsync(currentMessage);
+                    }
+                    else if (result.IsSuccess)
                     {
                         await _storageProvider.AckMessageAsync(currentMessage);
                     }

@@ -260,4 +260,16 @@ public class MongoStorageProvider : IStorageProvider
             .GetCollection<Message>(_mqOptions.Value.TableName)
             .InsertManyAsync(messages);
     }
+
+    public Task RequeueMessageAsync(Message currentMessage)
+    {
+        return GetMongoClient()
+            .GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName)
+            .UpdateOneAsync(
+                it => it.Id == currentMessage.Id,
+                Builders<Message>.Update.Set(it => it.Status, MessageStatus.Waiting)
+                    .Set(it=>it.ExecutableTime,DateTime.Now)
+            );
+    }
 }
