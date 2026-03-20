@@ -370,7 +370,7 @@ GROUP BY Queue;";
 
     public async Task RequeueMessageAsync(Message currentMessage)
     {
-        // 将一条消息的状态从Waiting改为Processing，并返回这条消息
+        // 将一条消息的状态改为Waiting
         var sql =
             @$"
     UPDATE {_mqOptions.Value.TableName} 
@@ -382,7 +382,7 @@ GROUP BY Queue;";
             sql,
             new
             {
-                Status = MessageStatus.Processing,
+                Status = MessageStatus.Waiting,
                 ExecutableTime = DateTime.Now,
             }
         );
