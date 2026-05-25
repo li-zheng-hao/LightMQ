@@ -9,6 +9,7 @@ Database-based message queues, currently supported databases.：
 1. MongoDB
 2. SqlServer
 3. Sqlite
+4. Redis
 
 Features：
 

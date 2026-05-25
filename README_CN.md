@@ -9,6 +9,7 @@
 1. MongoDB
 2. SqlServer
 3. Sqlite
+4. Redis
 
 特性：
 
