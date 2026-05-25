@@ -182,11 +182,10 @@ internal class PollMessageTask:IPollMessageTask
         }
         return message;
     }
-    private  string? GetRandomQueue(List<string?> allQueues)
+    private static string? GetRandomQueue(List<string?> allQueues)
     {
-        Random random = new Random();
-        int index = random.Next(allQueues.Count); // 生成一个随机索引
-        return allQueues[index]; // 返回对应索引的字符串
+        int index = Random.Shared.Next(allQueues.Count);
+        return allQueues[index];
     }
     #region Tracing
 

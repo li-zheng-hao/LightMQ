@@ -55,7 +55,7 @@ public class SqliteStorageProvider : IStorageProvider
     )
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header,Queue) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header,@Queue)";
         var dbTransaction = transaction as SqliteTransaction;
         var connection = dbTransaction!.Connection;
         await connection!
@@ -296,7 +296,7 @@ GROUP BY Queue;";
     public Task PublishNewMessagesAsync(List<Message> messages, object transaction)
     {
         var sql =
-            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header)";
+            $"insert into {_mqOptions.Value.TableName} (Id,Topic,Data,CreateTime,Status,ExecutableTime,RetryCount,Header,Queue) values (@Id,@Topic,@Data,@CreateTime,@Status,@ExecutableTime,@RetryCount,@Header,@Queue)";
         var dbTransaction = transaction as SqliteTransaction;
         var connection = dbTransaction!.Connection;
         return connection!.ExecuteAsync(sql, messages, dbTransaction);
@@ -318,6 +318,7 @@ GROUP BY Queue;";
             {
                 Status = MessageStatus.Waiting,
                 ExecutableTime = DateTime.Now,
+                currentMessage.Id,
             }
         );
     }

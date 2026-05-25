@@ -48,7 +48,7 @@ public class DispatcherService : Microsoft.Extensions.Hosting.BackgroundService
 
             await _storageProvider.InitTables(stoppingToken);
             
-            await Task.Run(()=>_consumerProvider.ScanConsumers(),stoppingToken);
+            _consumerProvider.ScanConsumers();
             
             if (_consumerProvider.GetConsumerInfos().Count == 0)
             {
@@ -59,11 +59,7 @@ public class DispatcherService : Microsoft.Extensions.Hosting.BackgroundService
 
             StartBackgroundServices(stoppingToken);
 
-            while (true)
-            {
-                stoppingToken.ThrowIfCancellationRequested();
-                await Task.Delay(500, stoppingToken);
-            }
+            await Task.Delay(Timeout.Infinite, stoppingToken);
         }
         catch (OperationCanceledException)
         {
