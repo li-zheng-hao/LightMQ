@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <Title>LightMQ.Storage.Redis</Title>
+        <Authors>lizhenghao</Authors>
+        <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/li-zheng-hao/LightMQ</RepositoryUrl>
+        <Description>基于数据库的消息队列</Description>
+        <PackageIcon>icon.png</PackageIcon>
+        <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\LightMQ\LightMQ.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\icon.png">
+            <Pack>True</Pack>
+            <PackagePath></PackagePath>
+            <Link>icon.png</Link>
+        </None>
+    </ItemGroup>
+
+</Project>

@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using LightMQ.Options;
+﻿using LightMQ.Options;
 using LightMQ.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,7 +12,7 @@ public class ClearOldMessagesBackgroundService : IBackgroundService
     private readonly IOptions<LightMQOptions> _options;
 
     public ClearOldMessagesBackgroundService(ILogger<ClearOldMessagesBackgroundService> logger,
-        IStorageProvider storageProvider,IOptions<LightMQOptions> options)
+        IStorageProvider storageProvider, IOptions<LightMQOptions> options)
     {
         _logger = logger;
         _storageProvider = storageProvider;
@@ -26,11 +25,20 @@ public class ClearOldMessagesBackgroundService : IBackgroundService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                var now = DateTime.Now;
+                var nextRun = now.Date.AddHours(4);
+                if (now > nextRun)
+                    nextRun = nextRun.AddDays(1);
+
+                var delay = nextRun - now;
+                await Task.Delay(delay, stoppingToken);
+
+                if (stoppingToken.IsCancellationRequested)
+                    break;
+
                 await _storageProvider.ClearOldMessagesAsync(stoppingToken);
 
                 _logger.LogDebug("清除历史消息完成");
-
-                await Task.Delay(_options.Value.MessageExpireDuration, stoppingToken);
             }
         }
         catch (TaskCanceledException) { }
