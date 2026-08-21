@@ -1,8 +1,28 @@
-﻿<Project>
+<Project>
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn),8618,CS8618,CS1591,NU1903,NU1902,CS1572,CS1573</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Version>4.3.0-preview</Version>
+
+    <!-- 通用打包配置：所有 nuget 库项目共用，新增项目无需逐个配置。
+         非打包项目（示例/测试）请在各自 csproj 中设置 IsPackable=false，
+         打包阶段会自动跳过，不会受 GeneratePackageOnBuild 影响。 -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <Authors>lizhenghao</Authors>
+    <PackageProjectUrl>https://github.com/li-zheng-hao/LightMQ</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/li-zheng-hao/LightMQ</RepositoryUrl>
+    <Description>基于数据库的消息队列</Description>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 打包时嵌入项目图标 -->
+    <None Include="..\..\icon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+      <Link>icon.png</Link>
+    </None>
+  </ItemGroup>
 </Project>

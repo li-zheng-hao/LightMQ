@@ -4,6 +4,9 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+
+        <!-- 示例项目不打包（公共 props 已启用 GeneratePackageOnBuild） -->
+        <IsPackable>false</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
