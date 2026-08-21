@@ -89,17 +89,16 @@ public class DispatcherService : Microsoft.Extensions.Hosting.BackgroundService
     {
         foreach (var consumer in _consumerProvider.GetConsumerInfos())
         {
-            for (var i = 0; i < consumer.ConsumerOptions.ParallelNum; i++)
-            {
-                var scheduleConsumeTask = _serviceProvider.GetRequiredService<IPollMessageTask>();
-                _tasks.Add(scheduleConsumeTask);
-                Task.Factory.StartNew(
-                    async () => await scheduleConsumeTask.RunAsync(consumer, cancellationToken),
-                    cancellationToken,
-                    TaskCreationOptions.LongRunning,
-                    TaskScheduler.Default
-                );
-            }
+            // 每个消费者只启动一个轮询任务，内部通过 Channel 按 ParallelNum 并发分发，
+            // 避免每个并发任务各自轮询一次数据库
+            var scheduleConsumeTask = _serviceProvider.GetRequiredService<IPollMessageTask>();
+            _tasks.Add(scheduleConsumeTask);
+            Task.Factory.StartNew(
+                async () => await scheduleConsumeTask.RunAsync(consumer, cancellationToken),
+                cancellationToken,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default
+            );
         }
     }
 

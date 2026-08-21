@@ -62,14 +62,15 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     null,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockStorageProvider
             .SetupSequence(it =>
@@ -125,14 +126,15 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     null,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockStorageProvider
             .SetupSequence(it =>
@@ -188,14 +190,15 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     null,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockStorageProvider
             .SetupSequence(it =>
@@ -264,24 +267,26 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     null,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     "queue2",
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message2)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message2 })
+            .ReturnsAsync(new List<Message>());
         _mockStorageProvider
             .SetupSequence(it =>
                 it.PollAllQueuesAsync(
@@ -354,24 +359,26 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     "queue1",
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
                     "queue2",
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message2)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message2 })
+            .ReturnsAsync(new List<Message>());
         _mockStorageProvider
             .Setup(it =>
                 it.PollAllQueuesAsync(
@@ -433,14 +440,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
-        ;
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
             .Returns(new FakeConsumer() { ReturnResult = false });
@@ -489,13 +496,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
         ;
         _mockConsumer
             .Setup(c => c.ConsumeAsync(message.Data, It.IsAny<CancellationToken>()))
@@ -532,8 +540,9 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .Setup(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
@@ -579,13 +588,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(100); // 设置较短的取消时间
@@ -627,13 +637,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -679,13 +690,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -731,13 +743,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -783,13 +796,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -835,13 +849,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -887,13 +902,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -944,13 +960,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -996,13 +1013,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))
@@ -1061,13 +1079,14 @@ public class PollMessageTaskTests
 
         _mockStorageProvider
             .SetupSequence(sp =>
-                sp.PollNewMessageAsync(
+                sp.PollNewMessagesAsync(
                     consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ReturnsAsync(message)
-            .ReturnsAsync((Message?)null);
+            .ReturnsAsync(new List<Message> { message })
+            .ReturnsAsync(new List<Message>());
 
         _mockServiceProvider
             .Setup(sp => sp.GetService(typeof(FakeConsumer)))

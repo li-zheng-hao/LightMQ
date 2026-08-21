@@ -475,6 +475,119 @@ public class SqliteProviderTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PollNewMessagesAsync_ShouldClaimBatchAndUpdateStatus()
+    {
+        // Arrange
+        var topic = "BatchTopic";
+        var messages = Enumerable.Range(0, 3)
+            .Select(i => new Message
+            {
+                Id = Guid.NewGuid().ToString(),
+                Topic = topic,
+                Data = $"Data{i}",
+                CreateTime = DateTime.Now,
+                Status = MessageStatus.Waiting,
+                ExecutableTime = DateTime.Now.AddMinutes(-1),
+                RetryCount = 0,
+                Header = $"Header{i}",
+                Queue = $"Queue{i}",
+            })
+            .ToList();
+
+        foreach (var message in messages)
+            await _sqliteStorageProvider.PublishNewMessageAsync(message, CancellationToken.None);
+
+        // Act
+        var polledMessages = await _sqliteStorageProvider.PollNewMessagesAsync(topic, 2, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(2, polledMessages.Count);
+        Assert.All(polledMessages, m => Assert.Contains(m.Id, messages.Select(it => it.Id)));
+
+        foreach (var message in polledMessages)
+        {
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = $"SELECT Status FROM {_options.Value.TableName} WHERE Id = @Id";
+            cmd.Parameters.Add(new SqliteParameter("@Id", message.Id));
+            var status = (long)await cmd.ExecuteScalarAsync();
+            Assert.Equal((long)MessageStatus.Processing, status);
+        }
+
+        // 剩下的1条消息仍然保持Waiting，可被再次领取
+        var remain = await _sqliteStorageProvider.PollNewMessagesAsync(topic, 10, CancellationToken.None);
+        Assert.Single(remain);
+        Assert.Equal((long)MessageStatus.Processing, (long)remain[0].Status);
+    }
+
+    [Fact]
+    public async Task PollNewMessagesAsync_WithQueue_ShouldOnlyClaimFromThatQueue()
+    {
+        // Arrange
+        var topic = "BatchQueueTopic";
+        var queueA = "A";
+        var queueB = "B";
+        var messageInQueueA = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            Topic = topic,
+            Data = "DataA",
+            CreateTime = DateTime.Now,
+            Status = MessageStatus.Waiting,
+            ExecutableTime = DateTime.Now.AddMinutes(-1),
+            RetryCount = 0,
+            Queue = queueA,
+        };
+        var messageInQueueB = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            Topic = topic,
+            Data = "DataB",
+            CreateTime = DateTime.Now,
+            Status = MessageStatus.Waiting,
+            ExecutableTime = DateTime.Now.AddMinutes(-1),
+            RetryCount = 0,
+            Queue = queueB,
+        };
+
+        await _sqliteStorageProvider.PublishNewMessageAsync(messageInQueueA, CancellationToken.None);
+        await _sqliteStorageProvider.PublishNewMessageAsync(messageInQueueB, CancellationToken.None);
+
+        // Act
+        var polledMessages = await _sqliteStorageProvider.PollNewMessagesAsync(topic, queueA, 10, CancellationToken.None);
+
+        // Assert
+        var polledMessage = Assert.Single(polledMessages);
+        Assert.Equal(messageInQueueA.Id, polledMessage.Id);
+        Assert.Equal((long)MessageStatus.Processing, (long)polledMessage.Status);
+    }
+
+    [Fact]
+    public async Task TryAcquireResetLeaseAsync_ShouldMutualExcludeAndExpire()
+    {
+        // 第一次获取成功
+        var first = await _sqliteStorageProvider.TryAcquireResetLeaseAsync(
+            TimeSpan.FromMilliseconds(200),
+            CancellationToken.None
+        );
+        Assert.True(first);
+
+        // 租约未过期前，其他节点获取失败
+        var second = await _sqliteStorageProvider.TryAcquireResetLeaseAsync(
+            TimeSpan.FromMilliseconds(200),
+            CancellationToken.None
+        );
+        Assert.False(second);
+
+        // 租约过期后，其他节点可重新获取
+        await Task.Delay(300);
+        var third = await _sqliteStorageProvider.TryAcquireResetLeaseAsync(
+            TimeSpan.FromMilliseconds(200),
+            CancellationToken.None
+        );
+        Assert.True(third);
+    }
+
+    [Fact]
     public async Task PublishNewMessagesAsync_ShouldInsertMultipleMessages()
     {
         // Arrange

@@ -39,20 +39,30 @@ public class ResetMessageBackgroundService : IBackgroundService
             }
             while (!stoppingToken.IsCancellationRequested)
             {
-                foreach (var consumer in consumers)
+                // 通过分布式租约选举主节点，只有主节点执行重置扫描，
+                // 避免集群中每个节点都周期性扫描数据库
+                var isLeader = await _storageProvider.TryAcquireResetLeaseAsync(
+                    _options.Value.ResetOutOfDateInterval + _options.Value.ResetOutOfDateInterval,
+                    stoppingToken
+                );
+
+                if (isLeader)
                 {
-                    if (consumer.ConsumerOptions.ResetInterval == null)
-                        continue;
-                    await _storageProvider.ResetOutOfDateMessagesAsync(
-                        consumer.ConsumerOptions.Topic,
-                        DateTime.Now.Subtract(consumer.ConsumerOptions.ResetInterval!.Value),
-                        stoppingToken
-                    );
+                    foreach (var consumer in consumers)
+                    {
+                        if (consumer.ConsumerOptions.ResetInterval == null)
+                            continue;
+                        await _storageProvider.ResetOutOfDateMessagesAsync(
+                            consumer.ConsumerOptions.Topic,
+                            DateTime.Now.Subtract(consumer.ConsumerOptions.ResetInterval!.Value),
+                            stoppingToken
+                        );
+                    }
+
+                    _logger.LogDebug("重置超时消息状态完成");
                 }
 
-                _logger.LogDebug("重置超时消息状态完成");
-
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                await Task.Delay(_options.Value.ResetOutOfDateInterval, stoppingToken);
             }
         }
         catch (TaskCanceledException) { }

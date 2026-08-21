@@ -10,6 +10,11 @@ namespace LightMQ.Storage.SqlServer;
 
 public class SqlServerStorageProvider : IStorageProvider
 {
+    /// <summary>
+    /// 当前节点标识，用于租约记录
+    /// </summary>
+    private static readonly string NodeId = Guid.NewGuid().ToString("N");
+
     private readonly DbConnection dbConnection;
     private readonly IOptions<LightMQOptions> _mqOptions;
     private readonly IOptions<SqlServerOptions> _dbOptions;
@@ -185,8 +190,8 @@ public class SqlServerStorageProvider : IStorageProvider
     {
         // 将一条消息的状态从Waiting改为Processing，并返回这条消息
         var sql =
-            @$"UPDATE top(1) {_mqOptions.Value.TableName} set Status=@Status,ExecutableTime=@ExecutableTime
- output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header,inserted.Queue  where Topic=@Topic and Status=@StatusOrigin 
+            @$"UPDATE top(1) {_mqOptions.Value.TableName} WITH (ROWLOCK, READPAST) set Status=@Status,ExecutableTime=@ExecutableTime
+ output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header,inserted.Queue  where Topic=@Topic and Status=@StatusOrigin
  and ExecutableTime<=@ExecutableTime";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
@@ -230,8 +235,8 @@ public class SqlServerStorageProvider : IStorageProvider
     {
         // 将一条消息的状态从Waiting改为Processing，并返回这条消息
         var sql =
-            @$"UPDATE top(1) {_mqOptions.Value.TableName} set Status=@Status,ExecutableTime=@ExecutableTime
- output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header,inserted.Queue  where Topic=@Topic and Status=@StatusOrigin 
+            @$"UPDATE top(1) {_mqOptions.Value.TableName} WITH (ROWLOCK, READPAST) set Status=@Status,ExecutableTime=@ExecutableTime
+ output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header,inserted.Queue  where Topic=@Topic and Status=@StatusOrigin
  and ExecutableTime<=@ExecutableTime and Queue=@Queue";
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
@@ -259,6 +264,110 @@ public class SqlServerStorageProvider : IStorageProvider
             },
             sqlParams: new object[]
             {
+                new SqlParameter("@Status", MessageStatus.Processing),
+                new SqlParameter("@Topic", topic),
+                new SqlParameter("@StatusOrigin", MessageStatus.Waiting),
+                new SqlParameter("@ExecutableTime", DateTime.Now),
+                new SqlParameter("@Queue", queue),
+            }
+        );
+    }
+
+    public async Task<List<Message>> PollNewMessagesAsync(
+        string topic,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // 批量将最多 count 条消息的状态从 Waiting 改为 Processing，并返回这些消息
+        var sql =
+            @$"UPDATE TOP (@Count) {_mqOptions.Value.TableName} WITH (ROWLOCK, READPAST)
+ set Status=@Status,ExecutableTime=@ExecutableTime
+ output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header,inserted.Queue
+ where Topic=@Topic and Status=@StatusOrigin
+ and ExecutableTime<=@ExecutableTime";
+        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        return await connection.ExecuteReaderAsync(
+            sql,
+            readerFunc: async reader =>
+            {
+                var messages = new List<Message>();
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    messages.Add(
+                        new Message()
+                        {
+                            Id = reader.GetString(0),
+                            Topic = reader.GetString(1),
+                            Data = reader.GetString(2),
+                            CreateTime = reader.GetDateTime(3),
+                            Status = reader.GetInt32(4).ToEnum<MessageStatus>(),
+                            ExecutableTime = reader.GetDateTime(5),
+                            RetryCount = reader.GetInt32(6),
+                            Header = reader.SafeGetString(7),
+                            Queue = reader.SafeGetString(8),
+                        }
+                    );
+                }
+
+                return messages;
+            },
+            sqlParams: new object[]
+            {
+                new SqlParameter("@Count", count),
+                new SqlParameter("@Status", MessageStatus.Processing),
+                new SqlParameter("@Topic", topic),
+                new SqlParameter("@StatusOrigin", MessageStatus.Waiting),
+                new SqlParameter("@ExecutableTime", DateTime.Now),
+            }
+        );
+    }
+
+    public async Task<List<Message>> PollNewMessagesAsync(
+        string topic,
+        string? queue,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // 批量将指定队列中最多 count 条消息的状态从 Waiting 改为 Processing，并返回这些消息
+        var sql =
+            @$"UPDATE TOP (@Count) {_mqOptions.Value.TableName} WITH (ROWLOCK, READPAST)
+ set Status=@Status,ExecutableTime=@ExecutableTime
+ output inserted.Id,inserted.Topic,inserted.Data,inserted.CreateTime,inserted.Status,inserted.ExecutableTime,inserted.RetryCount,inserted.Header,inserted.Queue
+ where Topic=@Topic and Status=@StatusOrigin
+ and ExecutableTime<=@ExecutableTime and Queue=@Queue";
+        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        return await connection.ExecuteReaderAsync(
+            sql,
+            readerFunc: async reader =>
+            {
+                var messages = new List<Message>();
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    messages.Add(
+                        new Message()
+                        {
+                            Id = reader.GetString(0),
+                            Topic = reader.GetString(1),
+                            Data = reader.GetString(2),
+                            CreateTime = reader.GetDateTime(3),
+                            Status = reader.GetInt32(4).ToEnum<MessageStatus>(),
+                            ExecutableTime = reader.GetDateTime(5),
+                            RetryCount = reader.GetInt32(6),
+                            Header = reader.SafeGetString(7),
+                            Queue = reader.SafeGetString(8),
+                        }
+                    );
+                }
+
+                return messages;
+            },
+            sqlParams: new object[]
+            {
+                new SqlParameter("@Count", count),
                 new SqlParameter("@Status", MessageStatus.Processing),
                 new SqlParameter("@Topic", topic),
                 new SqlParameter("@StatusOrigin", MessageStatus.Waiting),
@@ -324,6 +433,9 @@ GROUP BY Queue;";
 
     public async Task InitTables(CancellationToken stoppingToken = default)
     {
+        var indexName = $"IX_{_mqOptions.Value.TableName}_Topic_Status_ExecutableTime";
+        if (indexName.Length > 128)
+            indexName = indexName[..128];
         var sql = $"""
             IF NOT EXISTS(SELECT * FROM sysobjects WHERE name='{_mqOptions.Value.TableName}') CREATE TABLE {_mqOptions.Value.TableName}(
             Id varchar(50) primary key,
@@ -335,16 +447,47 @@ GROUP BY Queue;";
             RetryCount int not null,
             Header nvarchar(max)
             )
-            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS
                            WHERE TABLE_NAME = '{_mqOptions.Value.TableName}' AND COLUMN_NAME = 'Queue')
             BEGIN
                 ALTER TABLE {_mqOptions.Value.TableName}
                 ADD Queue nvarchar(255)
             END
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='{indexName}' AND object_id=OBJECT_ID('{_mqOptions.Value.TableName}'))
+            BEGIN
+                CREATE NONCLUSTERED INDEX {indexName} ON {_mqOptions.Value.TableName}(Topic, Status, ExecutableTime)
+            END
+            IF NOT EXISTS(SELECT * FROM sysobjects WHERE name='{_mqOptions.Value.TableName}_lease') CREATE TABLE {_mqOptions.Value.TableName}_lease(
+            LeaseKey varchar(50) primary key,
+            Owner varchar(50) not null,
+            ExpireTime datetime2 not null
+            )
+            IF NOT EXISTS (SELECT * FROM {_mqOptions.Value.TableName}_lease WHERE LeaseKey='reset')
+                INSERT INTO {_mqOptions.Value.TableName}_lease(LeaseKey,Owner,ExpireTime) VALUES('reset','','1900-01-01')
             """;
         var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
         await connection.ExecuteNonQueryAsync(sql);
+    }
+
+    public async Task<bool> TryAcquireResetLeaseAsync(TimeSpan duration, CancellationToken cancellationToken = default)
+    {
+        // 原子更新租约：只有租约已过期或未被持有时才更新成功（受影响行数为1）
+        var sql =
+            $"update {_mqOptions.Value.TableName}_lease set Owner=@Owner,ExpireTime=@ExpireTime where LeaseKey=@LeaseKey and ExpireTime<=@Now";
+        var connection = new SqlConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        var count = await connection.ExecuteNonQueryAsync(
+            sql,
+            sqlParams: new object[]
+            {
+                new SqlParameter("@Owner", NodeId),
+                new SqlParameter("@ExpireTime", DateTime.Now.Add(duration)),
+                new SqlParameter("@LeaseKey", "reset"),
+                new SqlParameter("@Now", DateTime.Now),
+            }
+        );
+        return count > 0;
     }
 
     public async Task PublishNewMessagesAsync(List<Message> messages)

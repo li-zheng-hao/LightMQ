@@ -30,6 +30,12 @@ public class LightMQOptions
     public Assembly? ConsumerAssembly { get; set; }
 
     /// <summary>
+    /// 重置超时消息的扫描间隔，默认30秒。
+    /// 多节点部署时内部通过分布式租约自动选举主节点，只有主节点执行重置扫描。
+    /// </summary>
+    public TimeSpan ResetOutOfDateInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// 服务退出超时时间 默认10秒
     /// </summary>
     public TimeSpan ExitTimeOut { get; set; }

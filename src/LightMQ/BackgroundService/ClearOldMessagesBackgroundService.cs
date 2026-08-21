@@ -25,13 +25,7 @@ public class ClearOldMessagesBackgroundService : IBackgroundService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var now = DateTime.Now;
-                var nextRun = now.Date.AddHours(4);
-                if (now > nextRun)
-                    nextRun = nextRun.AddDays(1);
-
-                var delay = nextRun - now;
-                await Task.Delay(delay, stoppingToken);
+                await Task.Delay(GetDelayToNextRunTime(), stoppingToken);
 
                 if (stoppingToken.IsCancellationRequested)
                     break;
@@ -42,5 +36,19 @@ public class ClearOldMessagesBackgroundService : IBackgroundService
             }
         }
         catch (TaskCanceledException) { }
+    }
+
+    /// <summary>
+    /// 计算距下次执行清理的等待时间，默认每天凌晨4点执行一次。
+    /// 独立成虚方法便于测试覆盖，不改变生产行为。
+    /// </summary>
+    protected virtual TimeSpan GetDelayToNextRunTime()
+    {
+        var now = DateTime.Now;
+        var nextRun = now.Date.AddHours(4);
+        if (now > nextRun)
+            nextRun = nextRun.AddDays(1);
+
+        return nextRun - now;
     }
 }

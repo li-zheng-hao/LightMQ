@@ -2,6 +2,7 @@
 using LightMQ.Transport;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
 namespace LightMQ.Storage.MongoDB;
@@ -12,6 +13,11 @@ public class MongoStorageProvider : IStorageProvider
     private object locker = new();
     private readonly IOptions<LightMQOptions> _mqOptions;
     private readonly IOptions<MongoDBOptions> _mongoOptions;
+
+    /// <summary>
+    /// 当前节点标识，用于租约记录
+    /// </summary>
+    private static readonly string NodeId = Guid.NewGuid().ToString("N");
 
     public MongoStorageProvider(
         IOptions<LightMQOptions> mqOptions,
@@ -174,6 +180,75 @@ public class MongoStorageProvider : IStorageProvider
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
     }
 
+    public async Task<List<Message>> PollNewMessagesAsync(
+        string topic,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var collection = GetMongoClient()
+            .GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName);
+
+        // MongoDB 没有单语句批量"查找并更新"，逐个原子领取，最多 count 条
+        var messages = new List<Message>();
+        for (var i = 0; i < count; i++)
+        {
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+            var message = await collection.FindOneAndUpdateAsync(
+                it =>
+                    it.Topic == topic
+                    && it.Status == MessageStatus.Waiting
+                    && it.ExecutableTime <= DateTime.Now,
+                Builders<Message>
+                    .Update.Set(it => it.Status, MessageStatus.Processing)
+                    .Set(it => it.ExecutableTime, DateTime.Now),
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+                cancellationToken: cancellationToken
+            );
+            if (message == null)
+                break;
+            messages.Add(message);
+        }
+
+        return messages;
+    }
+
+    public async Task<List<Message>> PollNewMessagesAsync(
+        string topic,
+        string? queue,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var collection = GetMongoClient()
+            .GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<Message>(_mqOptions.Value.TableName);
+
+        var messages = new List<Message>();
+        for (var i = 0; i < count; i++)
+        {
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+            var message = await collection.FindOneAndUpdateAsync(
+                it =>
+                    it.Topic == topic
+                    && it.Status == MessageStatus.Waiting
+                    && it.ExecutableTime <= DateTime.Now
+                    && it.Queue == queue,
+                Builders<Message>
+                    .Update.Set(it => it.Status, MessageStatus.Processing)
+                    .Set(it => it.ExecutableTime, DateTime.Now),
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+                cancellationToken: cancellationToken
+            );
+            if (message == null)
+                break;
+            messages.Add(message);
+        }
+
+        return messages;
+    }
+
     public async Task<List<string?>> PollAllQueuesAsync(
         string topic,
         CancellationToken cancellationToken = default
@@ -235,6 +310,7 @@ public class MongoStorageProvider : IStorageProvider
             await db.ListCollectionNamesAsync(cancellationToken: stoppingToken)
                 .ConfigureAwait(false)
         ).ToList();
+        var leaseCollectionName = $"{_mqOptions.Value.TableName}_lease";
 
         if (names.All(n => n != _mqOptions.Value.TableName))
             await db.CreateCollectionAsync(
@@ -242,6 +318,79 @@ public class MongoStorageProvider : IStorageProvider
                     cancellationToken: stoppingToken
                 )
                 .ConfigureAwait(false);
+
+        // 消息领取/超时重置都依赖 (Topic, Status, ExecutableTime) 过滤，建复合索引避免全集合扫描
+        var collection = db.GetCollection<Message>(_mqOptions.Value.TableName);
+        await collection.Indexes
+            .CreateOneAsync(
+                new CreateIndexModel<Message>(
+                    Builders<Message>
+                        .IndexKeys.Ascending(it => it.Topic)
+                        .Ascending(it => it.Status)
+                        .Ascending(it => it.ExecutableTime)
+                ),
+                cancellationToken: stoppingToken
+            )
+            .ConfigureAwait(false);
+
+        // 租约集合：用于"重置超时消息"的主节点选举
+        if (names.All(n => n != leaseCollectionName))
+            await db.CreateCollectionAsync(
+                    leaseCollectionName,
+                    cancellationToken: stoppingToken
+                )
+                .ConfigureAwait(false);
+        var leaseCollection = db.GetCollection<ResetLease>(leaseCollectionName);
+        await leaseCollection
+            .ReplaceOneAsync(
+                Builders<ResetLease>.Filter.Eq(it => it.LeaseKey, "reset"),
+                new ResetLease
+                {
+                    LeaseKey = "reset",
+                    Owner = string.Empty,
+                    ExpireTime = new DateTime(1970, 1, 1),
+                },
+                new ReplaceOptions { IsUpsert = true },
+                cancellationToken: stoppingToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    public async Task<bool> TryAcquireResetLeaseAsync(
+        TimeSpan duration,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // 原子抢占租约：只有租约已过期时才更新成功（匹配到1条文档）
+        var leaseCollection = GetMongoClient()
+            .GetDatabase(_mongoOptions.Value.DatabaseName)
+            .GetCollection<ResetLease>($"{_mqOptions.Value.TableName}_lease");
+
+        var result = await leaseCollection
+            .UpdateOneAsync(
+                Builders<ResetLease>.Filter.Eq(it => it.LeaseKey, "reset")
+                    & Builders<ResetLease>.Filter.Lte(it => it.ExpireTime, DateTime.Now),
+                Builders<ResetLease>
+                    .Update.Set(it => it.Owner, NodeId)
+                    .Set(it => it.ExpireTime, DateTime.Now.Add(duration)),
+                cancellationToken: cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        return result.ModifiedCount > 0;
+    }
+
+    /// <summary>
+    /// 分布式租约文档，用于"重置超时消息"的主节点选举
+    /// </summary>
+    private class ResetLease
+    {
+        [BsonId]
+        public string LeaseKey { get; set; } = default!;
+
+        public string Owner { get; set; } = default!;
+
+        public DateTime ExpireTime { get; set; }
     }
 
     public Task PublishNewMessagesAsync(List<Message> messages)

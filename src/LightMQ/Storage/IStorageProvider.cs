@@ -97,6 +97,35 @@ public interface IStorageProvider
     );
 
     /// <summary>
+    /// 尝试获取"重置超时消息"的分布式租约（主节点选举）。
+    /// 同一时间集群内最多一个节点获取成功；超过 duration 后租约自动失效，其他节点才可重新获取。
+    /// 用于避免每个节点都周期性扫描重置超时消息。
+    /// </summary>
+    /// <param name="duration">租约时长，超过该时长未续约视为失效</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>获取成功返回 true</returns>
+    Task<bool> TryAcquireResetLeaseAsync(TimeSpan duration, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 批量拉取新消息（最多领取 count 条，状态原子改为 Processing）
+    /// </summary>
+    /// <param name="topic"></param>
+    /// <param name="count">最多领取的消息条数</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<List<Message>> PollNewMessagesAsync(string topic, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 批量拉取指定队列中的新消息（最多领取 count 条，状态原子改为 Processing）
+    /// </summary>
+    /// <param name="topic"></param>
+    /// <param name="queue"></param>
+    /// <param name="count">最多领取的消息条数</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<List<Message>> PollNewMessagesAsync(string topic, string? queue, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 消息成功ACK
     /// </summary>
     /// <param name="currentMessage"></param>

@@ -66,6 +66,10 @@ public class ResetMessageBackgroundServiceTests
                 ))
             .Returns(Task.CompletedTask);
 
+        _mockStorageProvider
+            .Setup(sp => sp.TryAcquireResetLeaseAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         // Act
         await _service.ExecuteAsync(cancellationToken.Token);
 
@@ -80,5 +84,45 @@ public class ResetMessageBackgroundServiceTests
             Times.AtLeastOnce
         );
         _mockLogger.VerifyLogging("重置超时消息状态完成");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldNotReset_WhenLeaseNotAcquired()
+    {
+        // Arrange
+        var cancellationToken = new CancellationTokenSource();
+        cancellationToken.CancelAfter(500); // 设置取消时间
+
+        var consumerInfo = new ConsumerInfo
+        {
+            ConsumerOptions = new ConsumerOptions
+            {
+                Topic = "test-topic",
+                ResetInterval = TimeSpan.FromMinutes(1),
+            },
+        };
+        _mockConsumerProvider
+            .Setup(cp => cp.GetConsumerInfos())
+            .Returns(new List<ConsumerInfo> { consumerInfo });
+
+        // 未获取到租约（其他节点是主节点），本轮不执行重置扫描
+        _mockStorageProvider
+            .Setup(sp => sp.TryAcquireResetLeaseAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act
+        await _service.ExecuteAsync(cancellationToken.Token);
+
+        // Assert
+        _mockStorageProvider.Verify(
+            sp =>
+                sp.ResetOutOfDateMessagesAsync(
+                    consumerInfo.ConsumerOptions.Topic,
+                    It.IsAny<DateTime>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Never
+        );
+        _mockLogger.VerifyLogging("重置超时消息状态完成", times: Times.Never());
     }
 }

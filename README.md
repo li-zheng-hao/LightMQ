@@ -18,10 +18,6 @@ Features：
 3. Supports concurrent consumption
 4. Support opentelemetry tracing
 
-## Test Coverage
-
-![test screenshot](./doc/test_coverage_20240822100230.jpg)
-
 ## Usage
 
 Initialize：

@@ -57,6 +57,11 @@ public class RedisStorageProvider : IStorageProvider
     private string MsgKeyPrefix(string topic) =>
         $"{_redisOptions.Value.KeyPrefix}:{topic}:msg:";
 
+    private string ResetLeaseKey =>
+        $"{_redisOptions.Value.KeyPrefix}:lightmq:reset:lease";
+
+    private static readonly string NodeId = Guid.NewGuid().ToString("N");
+
     private TimeSpan MsgExpiry => _mqOptions.Value.MessageExpireDuration;
 
     #region Publish
@@ -233,6 +238,116 @@ return nil"
         return DeserializeMessage((string?)json);
     }
 
+    private static readonly LuaScript PollFromKeyBatchScript = LuaScript.Prepare(
+        @"
+local result = {}
+local total = tonumber(@count)
+while true do
+    local row = redis.call('ZRANGE', @pendingKey, 0, 0, 'WITHSCORES')
+    if #row == 0 then break end
+    local id = row[1]
+    local score = tonumber(row[2])
+    if score > tonumber(@nowTicks) then break end
+
+    redis.call('ZREM', @pendingKey, id)
+
+    local json = redis.call('GET', @msgKeyPrefix .. id)
+    if json then
+        local msg = cjson.decode(json)
+        msg.Status = 1
+        local newJson = cjson.encode(msg)
+        redis.call('SET', @msgKeyPrefix .. id, newJson)
+        redis.call('ZADD', @processingKey, @nowTicks, id)
+        table.insert(result, newJson)
+        if #result >= total then break end
+    end
+end
+if #result == 0 then return nil end
+return result"
+    );
+
+    private static readonly LuaScript PollGlobalBatchScript = LuaScript.Prepare(
+        @"
+local result = {}
+local total = tonumber(@count)
+
+local function tryPoll(pendingKey)
+    while true do
+        local row = redis.call('ZRANGE', pendingKey, 0, 0, 'WITHSCORES')
+        if #row == 0 then break end
+        local id = row[1]
+        local score = tonumber(row[2])
+        if score > tonumber(@nowTicks) then break end
+
+        redis.call('ZREM', pendingKey, id)
+
+        local json = redis.call('GET', @msgKeyPrefix .. id)
+        if json then
+            local msg = cjson.decode(json)
+            msg.Status = 1
+            local newJson = cjson.encode(msg)
+            redis.call('SET', @msgKeyPrefix .. id, newJson)
+            redis.call('ZADD', @processingKey, @nowTicks, id)
+            table.insert(result, newJson)
+            if #result >= total then return true end
+        end
+    end
+    return false
+end
+
+local done = tryPoll(@pendingKey)
+if done then return result end
+
+local queues = redis.call('SMEMBERS', @queuesKey)
+for i, queue in ipairs(queues) do
+    local qPendingKey = @queuesKeyPrefix .. queue
+    done = tryPoll(qPendingKey)
+    if done then return result end
+end
+
+if #result == 0 then return nil end
+return result"
+    );
+
+    public async Task<List<Message>> PollNewMessagesAsync(string topic, int count, CancellationToken cancellationToken = default)
+    {
+        var db = GetDb();
+        var nowTicks = DateTime.Now.Ticks;
+        var json = await db.ScriptEvaluateAsync(PollGlobalBatchScript,
+            new
+            {
+                pendingKey = PendingKey(topic),
+                processingKey = ProcessingKey(topic),
+                msgKeyPrefix = MsgKeyPrefix(topic),
+                queuesKey = QueuesKey(topic),
+                queuesKeyPrefix = $"{_redisOptions.Value.KeyPrefix}:{topic}:pending:q:",
+                nowTicks,
+                count,
+            });
+
+        return DeserializeMessages(json);
+    }
+
+    public async Task<List<Message>> PollNewMessagesAsync(string topic, string? queue, int count, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(queue))
+            return await PollNewMessagesAsync(topic, count, cancellationToken);
+
+        var db = GetDb();
+        var nowTicks = DateTime.Now.Ticks;
+        var json = await db.ScriptEvaluateAsync(PollFromKeyBatchScript,
+            new
+            {
+                pendingKey = PendingQueueKey(topic, queue),
+                processingKey = ProcessingKey(topic),
+                msgKeyPrefix = MsgKeyPrefix(topic),
+                nowTicks,
+                count,
+            });
+
+        return DeserializeMessages(json);
+    }
+
     public async Task<List<string?>> PollAllQueuesAsync(string topic, CancellationToken cancellationToken = default)
     {
         var db = GetDb();
@@ -398,8 +513,33 @@ return nil"
         return Task.CompletedTask;
     }
 
+    public Task<bool> TryAcquireResetLeaseAsync(TimeSpan duration, CancellationToken cancellationToken = default)
+    {
+        // SET NX 原子抢占，key 自带 TTL，到期自动释放租约
+        return GetDb().StringSetAsync(ResetLeaseKey, NodeId, duration, When.NotExists);
+    }
+
     #endregion
 
     private static Message? DeserializeMessage(string? json) =>
         json == null ? null : JsonConvert.DeserializeObject<Message>(json);
+
+    /// <summary>
+    /// 批量领取脚本返回 Lua 数组（至少一条），这里解析为消息列表
+    /// </summary>
+    private static List<Message> DeserializeMessages(RedisResult? redisResult)
+    {
+        var messages = new List<Message>();
+        if (redisResult == null || redisResult.IsNull)
+            return messages;
+
+        foreach (var value in (RedisResult[])redisResult!)
+        {
+            var json = (string?)value;
+            if (json != null)
+                messages.Add(JsonConvert.DeserializeObject<Message>(json)!);
+        }
+
+        return messages;
+    }
 }

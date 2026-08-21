@@ -8,6 +8,11 @@ namespace LightMQ.Storage.Sqlite;
 
 public class SqliteStorageProvider : IStorageProvider
 {
+    /// <summary>
+    /// 当前节点标识，用于租约记录
+    /// </summary>
+    private static readonly string NodeId = Guid.NewGuid().ToString("N");
+
     private readonly IOptions<LightMQOptions> _mqOptions;
     private readonly IOptions<SqliteOptions> _dbOptions;
 
@@ -219,6 +224,81 @@ public class SqliteStorageProvider : IStorageProvider
         );
     }
 
+    public async Task<List<Message>> PollNewMessagesAsync(
+        string topic,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // 批量将最多 count 条消息的状态从 Waiting 改为 Processing，并返回这些消息
+        var sql =
+            @$"
+UPDATE {_mqOptions.Value.TableName}
+SET Status = @Status, ExecutableTime = @ExecutableTime
+WHERE Id IN (
+    SELECT Id FROM {_mqOptions.Value.TableName}
+    WHERE Topic = @Topic
+    AND Status = @StatusOrigin
+    AND ExecutableTime <= @ExecutableTime
+    ORDER BY ROWID
+    LIMIT @Count
+)
+RETURNING Id, Topic, Data, CreateTime, Status, ExecutableTime, RetryCount, Header, Queue";
+        var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        var messages = await connection.QueryAsync<Message>(
+            sql,
+            new
+            {
+                Status = MessageStatus.Processing,
+                Topic = topic,
+                StatusOrigin = MessageStatus.Waiting,
+                ExecutableTime = DateTime.Now,
+                Count = count,
+            }
+        );
+        return messages.ToList();
+    }
+
+    public async Task<List<Message>> PollNewMessagesAsync(
+        string topic,
+        string? queue,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // 批量将指定队列中最多 count 条消息的状态从 Waiting 改为 Processing，并返回这些消息
+        var sql =
+            @$"
+UPDATE {_mqOptions.Value.TableName}
+SET Status = @Status, ExecutableTime = @ExecutableTime
+WHERE Id IN (
+    SELECT Id FROM {_mqOptions.Value.TableName}
+    WHERE Topic = @Topic
+    AND Status = @StatusOrigin
+    AND ExecutableTime <= @ExecutableTime
+    AND Queue = @Queue
+    ORDER BY ROWID
+    LIMIT @Count
+)
+RETURNING Id, Topic, Data, CreateTime, Status, ExecutableTime, RetryCount, Header, Queue";
+        var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        var messages = await connection.QueryAsync<Message>(
+            sql,
+            new
+            {
+                Status = MessageStatus.Processing,
+                Topic = topic,
+                StatusOrigin = MessageStatus.Waiting,
+                ExecutableTime = DateTime.Now,
+                Queue = queue,
+                Count = count,
+            }
+        );
+        return messages.ToList();
+    }
+
     public async Task<List<string?>> PollAllQueuesAsync(
         string topic,
         CancellationToken cancellationToken = default
@@ -262,6 +342,7 @@ GROUP BY Queue;";
     public async Task InitTables(CancellationToken stoppingToken = default)
     {
         var sql = $"""
+                   PRAGMA journal_mode=WAL;
                    CREATE TABLE IF NOT EXISTS {_mqOptions.Value.TableName} (
                        Id TEXT PRIMARY KEY,
                        Topic TEXT NOT NULL,
@@ -272,13 +353,41 @@ GROUP BY Queue;";
                        RetryCount INTEGER NOT NULL,
                        Header TEXT,
                        Queue TEXT
-                   )
+                   );
+                   CREATE INDEX IF NOT EXISTS IX_{_mqOptions.Value.TableName}_Topic_Status_ExecutableTime
+                       ON {_mqOptions.Value.TableName}(Topic, Status, ExecutableTime);
+                   CREATE TABLE IF NOT EXISTS {_mqOptions.Value.TableName}_lease (
+                       LeaseKey TEXT PRIMARY KEY,
+                       Owner TEXT NOT NULL,
+                       ExpireTime DATETIME NOT NULL
+                   );
+                   INSERT OR IGNORE INTO {_mqOptions.Value.TableName}_lease(LeaseKey,Owner,ExpireTime) VALUES('reset','','1900-01-01');
                    """;
         var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
         await using var _ = connection.ConfigureAwait(false);
         await connection.ExecuteAsync(sql);
         // var version=connection.ExecuteScalar<string>("select sqlite_version();");
         // Console.WriteLine($"SQLite 版本: {version}");
+    }
+
+    public async Task<bool> TryAcquireResetLeaseAsync(TimeSpan duration, CancellationToken cancellationToken = default)
+    {
+        // 原子更新租约：只有租约已过期或未被持有时才更新成功（受影响行数为1）
+        var sql =
+            $"update {_mqOptions.Value.TableName}_lease set Owner=@Owner,ExpireTime=@ExpireTime where LeaseKey=@LeaseKey and ExpireTime<=@Now";
+        var connection = new SqliteConnection(_dbOptions.Value.ConnectionString);
+        await using var _ = connection.ConfigureAwait(false);
+        var count = await connection.ExecuteAsync(
+            sql,
+            new
+            {
+                Owner = NodeId,
+                ExpireTime = DateTime.Now.Add(duration),
+                LeaseKey = "reset",
+                Now = DateTime.Now,
+            }
+        );
+        return count > 0;
     }
 
     public async Task PublishNewMessagesAsync(List<Message> messages)
